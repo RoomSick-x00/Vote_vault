@@ -40,7 +40,7 @@ def stub_runtime() -> bytes:
     ):
         code += _push1(0) + MLOAD  # topic1 = electionId
         code += PUSH32 + event_topic0(signature)
-        code += _push1(0) + _push1(0) + LOG2
+        code += (_push1(32) + _push1(32) if signature == EVENT_SIGNATURES["register_election"] else _push1(0) + _push1(0)) + LOG2
     # BallotPublished: topic2 = word1, data = word2 (commitment)
     code += _push1(0x20) + MLOAD  # topic2 = word1 (ballotId)
     code += _push1(0) + MLOAD + PUSH32 + event_topic0(EVENT_SIGNATURES["publish_ballot"])

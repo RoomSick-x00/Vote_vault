@@ -54,13 +54,6 @@ def create_election(
     )
     db.add(election)
     db.flush()
-    publication_service.create_job(
-        db,
-        job_type="register_election",
-        election=election,
-        payload=publication_service.build_payload("register_election", election.id),
-        max_attempts=settings.publication_max_attempts,
-    )
     db.commit()
     db.refresh(election)
     return ElectionOut.build(election, [])
@@ -80,9 +73,10 @@ def open_election(
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> OpenElectionOut:
+    election = db.scalars(select(Election).where(Election.id == election.id).with_for_update().execution_options(populate_existing=True)).one()
     if election.status == "open":
         raise ApiError(409, "ELECTION_NOT_DRAFT", "Election is already open.")
-    if election.status == "closed":
+    if election.status in ("closing", "closed"):
         raise ApiError(409, "ELECTION_NOT_DRAFT", "Election is closed and can no longer be opened.")
 
     candidate_count = db.scalar(
@@ -96,6 +90,10 @@ def open_election(
     if not voter_count:
         raise ApiError(409, "ELECTION_HAS_NO_VOTERS", "Add at least one eligible voter before opening.")
 
+    from app.services.configuration import freeze_configuration
+    frozen = freeze_configuration(db, election)
+    _ensure_job(db, election, "register_election", settings, payload={
+        **publication_service.build_payload("register_election", election.id, config_hash=frozen["config_hash"]), **frozen})
     election.status = "open"
     election.opened_at = utcnow()
     _ensure_job(db, election, "open_election", settings)
@@ -112,7 +110,8 @@ def close_election(
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> CloseElectionOut:
-    if election.status == "closed":  # idempotent: repeated close returns same state
+    election = db.scalars(select(Election).where(Election.id == election.id).with_for_update().execution_options(populate_existing=True)).one()
+    if election.status in ("closing", "closed"):  # idempotent: repeated close returns same state
         return CloseElectionOut(
             election_id=str(election.id), status=election.status, closed_at=election.closed_at
         )
@@ -120,8 +119,8 @@ def close_election(
         raise ApiError(409, "ELECTION_NOT_OPEN", "Only an open election can be closed.")
 
     result_hash = tally_service.compute_result_hash(db, election)
-    election.status = "closed"
-    election.closed_at = utcnow()
+    election.status = "closing"
+    election.closed_at = None
     _ensure_job(db, election, "close_election", settings)
     _ensure_job(
         db,
@@ -172,3 +171,11 @@ def _ensure_job(
         or publication_service.build_payload(job_type, election.id),
         max_attempts=settings.publication_max_attempts,
     )
+
+
+@router.get("/{election_id}/configuration")
+def get_configuration(election: Election = Depends(require_visible_election), db: Session = Depends(get_db)):
+    job = db.scalars(select(PublicationJob).where(PublicationJob.election_id == election.id, PublicationJob.job_type == "register_election")).first()
+    if job is None or "configuration" not in job.payload:
+        raise ApiError(409, "CONFIGURATION_NOT_FROZEN", "Configuration is frozen at opening.")
+    return {key: job.payload[key] for key in ("configuration", "canonical_json", "config_hash")}

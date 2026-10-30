@@ -1,0 +1,108 @@
+{
+  "scope": "FastAPI TestClient + migrated test database + real Hardhat; synthetic JWTs; no UI",
+  "database_dialect": "sqlite",
+  "address": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+  "chainId": 31337,
+  "tally": [
+    2,
+    1,
+    0
+  ],
+  "ballot_events": 4,
+  "unique_ballots": 3,
+  "jobs": [
+    {
+      "type": "register_election",
+      "transaction_hash": "0x25c94793717c826a344dbdf85bbd4ae0e4901d7bfd8de46d89d468f0b22c485e",
+      "payload": {
+        "election_id": "0x00000000000000000000000000000000408ea6ccabec426d8a8b3c6844ae6013",
+        "config_hash": "0x6c1e3dc0f55cda1382954a0eb3a61d05c2657642b891c8093536069d626910da",
+        "configuration": {
+          "version": "VV_CONFIG_1",
+          "election_id": "0x00000000000000000000000000000000408ea6ccabec426d8a8b3c6844ae6013",
+          "title": "Club election 2026",
+          "candidates": [
+            {
+              "candidate_id": "19b68ed3-9f64-4b7f-b2ed-c2eaf39b2074",
+              "chain_index": 0,
+              "name": "Candidate A"
+            },
+            {
+              "candidate_id": "9e9a984c-3089-41c9-a4bc-3cd501431b50",
+              "chain_index": 1,
+              "name": "Candidate B"
+            },
+            {
+              "candidate_id": "64ba77e8-16e3-4ab7-8d51-a0507e261073",
+              "chain_index": 2,
+              "name": "Candidate C"
+            }
+          ],
+          "rules": {
+            "selection": "single_candidate",
+            "max_ballots_per_voter": 1,
+            "opens_at": null,
+            "closes_at": null
+          }
+        },
+        "canonical_json": "{\"candidates\":[{\"candidate_id\":\"19b68ed3-9f64-4b7f-b2ed-c2eaf39b2074\",\"chain_index\":0,\"name\":\"Candidate A\"},{\"candidate_id\":\"9e9a984c-3089-41c9-a4bc-3cd501431b50\",\"chain_index\":1,\"name\":\"Candidate B\"},{\"candidate_id\":\"64ba77e8-16e3-4ab7-8d51-a0507e261073\",\"chain_index\":2,\"name\":\"Candidate C\"}],\"election_id\":\"0x00000000000000000000000000000000408ea6ccabec426d8a8b3c6844ae6013\",\"rules\":{\"closes_at\":null,\"max_ballots_per_voter\":1,\"opens_at\":null,\"selection\":\"single_candidate\"},\"title\":\"Club election 2026\",\"version\":\"VV_CONFIG_1\"}"
+      },
+      "status": "confirmed"
+    },
+    {
+      "type": "open_election",
+      "transaction_hash": "0x43e8e9c5d9bbe931fbe3716e6b836611b6e433265977c5715db1d72f9f5a5e05",
+      "payload": {
+        "election_id": "0x00000000000000000000000000000000408ea6ccabec426d8a8b3c6844ae6013"
+      },
+      "status": "confirmed"
+    },
+    {
+      "type": "publish_ballot",
+      "transaction_hash": "0xd8a14073505d5e9b9e7cd3e8209b35635bed12791832df972107e1121364cb7a",
+      "payload": {
+        "election_id": "0x00000000000000000000000000000000408ea6ccabec426d8a8b3c6844ae6013",
+        "ballot_id": "0x0000000000000000000000000000000026e2794da75a4e48a947030becb42073",
+        "commitment": "0x7b88d6692e0471b75426af3f5d5d69392c924d0cb96659fd6413a44c9bb2ff2c"
+      },
+      "status": "confirmed"
+    },
+    {
+      "type": "publish_ballot",
+      "transaction_hash": "0xe3b3986c6cb3bd2d752ce8d007cf2fab022550c891d6dd9133fbd370fce87a96",
+      "payload": {
+        "election_id": "0x00000000000000000000000000000000408ea6ccabec426d8a8b3c6844ae6013",
+        "ballot_id": "0x000000000000000000000000000000007ad2ffc94abd4ae6924b3b871a1304db",
+        "commitment": "0x7e040427f71ef03e1e3075c792f84cb2578e4e55100d64a17f6a6878d3702828"
+      },
+      "status": "confirmed"
+    },
+    {
+      "type": "publish_ballot",
+      "transaction_hash": "0xab61dac97b4d1a7ddf9ecb7b6692b23460f766c8d37b370dcf70b1070ac194d9",
+      "payload": {
+        "election_id": "0x00000000000000000000000000000000408ea6ccabec426d8a8b3c6844ae6013",
+        "ballot_id": "0x00000000000000000000000000000000fb5258e220d04e45869dcb12dd6c1e84",
+        "commitment": "0x65ed76031799ec18bdf6d8b26700d3e8acfa20350d37487a06ec65c002222b04"
+      },
+      "status": "confirmed"
+    },
+    {
+      "type": "close_election",
+      "transaction_hash": "0x1baa24f2059f69988c3a09728b4f5ef318cc6c5379e0fa58117e0f14e64fe8c7",
+      "payload": {
+        "election_id": "0x00000000000000000000000000000000408ea6ccabec426d8a8b3c6844ae6013"
+      },
+      "status": "confirmed"
+    },
+    {
+      "type": "publish_result",
+      "transaction_hash": "0x8a1e509e53373899f130de68729a5f2e7086a7527333591f527498e95707b4c4",
+      "payload": {
+        "election_id": "0x00000000000000000000000000000000408ea6ccabec426d8a8b3c6844ae6013",
+        "result_hash": "0x76164b20e38d29cf0cf9270beec3a99e7fd4d0a888a729699645b4b55e5f842b"
+      },
+      "status": "confirmed"
+    }
+  ]
+}

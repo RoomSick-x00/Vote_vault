@@ -12,12 +12,12 @@ describe("ElectionRegistry", function () {
   const register = async () => c.registerElection(election, commitment);
   const open = async () => { await register(); await c.openElection(election); };
   it("records the normal lifecycle and exact commitment events", async function () {
-    await expect(register()).to.emit(c,"ElectionRegistered").withArgs(election,commitment);
-    await expect(c.openElection(election)).to.emit(c,"ElectionOpened").withArgs(election);
-    await expect(c.publishBallot(election,ballot,commitment)).to.emit(c,"BallotPublished").withArgs(election,ballot,commitment);
+    await expect(register()).to.emit(c,"ElectionRegistered").withArgs(election,commitment,relayer.address);
+    await expect(c.openElection(election)).to.emit(c,"ElectionOpened").withArgs(election,relayer.address);
+    await expect(c.publishBallot(election,ballot,commitment)).to.emit(c,"BallotPublished").withArgs(election,ballot,commitment,relayer.address);
     expect(await c.ballotCommitments(election,ballot)).to.equal(commitment);
-    await expect(c.closeElection(election)).to.emit(c,"ElectionClosed").withArgs(election);
-    await expect(c.publishResult(election,result)).to.emit(c,"ResultPublished").withArgs(election,result);
+    await expect(c.closeElection(election)).to.emit(c,"ElectionClosed").withArgs(election,relayer.address);
+    await expect(c.publishResult(election,result)).to.emit(c,"ResultPublished").withArgs(election,result,relayer.address);
     expect(await c.getElection(election)).to.deep.equal([3n,commitment,result,1n]);
   });
   it("rejects every unauthorized write, including admin without relayer role", async function () {
@@ -29,11 +29,12 @@ describe("ElectionRegistry", function () {
     }
     await expect(c.grantRole(await c.RELAYER_ROLE(),stranger.address)).to.be.revertedWithCustomError(c,"AccessControlUnauthorizedAccount");
   });
-  it("rejects duplicate ballot publication without incrementing count", async function () {
+  it("re-emits identical ballot retries without incrementing count; rejects conflicts", async function () {
     await open(); await c.publishBallot(election,ballot,commitment);
-    for (const value of [commitment,result]) await expect(c.publishBallot(election,ballot,value)).to.be.revertedWithCustomError(c,"BallotAlreadyPublished");
+    await expect(c.publishBallot(election,ballot,commitment)).to.emit(c,"BallotPublished").withArgs(election,ballot,commitment,relayer.address);
+    for (const value of [result]) await expect(c.publishBallot(election,ballot,value)).to.be.revertedWithCustomError(c,"BallotAlreadyPublished");
     expect((await c.getElection(election)).ballotCount).to.equal(1n);
-    expect((await c.queryFilter(c.filters.BallotPublished(election,ballot))).length).to.equal(1);
+    expect((await c.queryFilter(c.filters.BallotPublished(election,ballot))).length).to.equal(2);
   });
   it("rejects ballots before registration, before opening and after closure", async function () {
     await expect(c.publishBallot(election,ballot,commitment)).to.be.revertedWithCustomError(c,"InvalidState");
@@ -42,22 +43,25 @@ describe("ElectionRegistry", function () {
     await c.openElection(election); await c.closeElection(election);
     await expect(c.publishBallot(election,ballot,commitment)).to.be.revertedWithCustomError(c,"InvalidState");
   });
-  it("rejects re-registration, early close, repeated open/close and reopening", async function () {
+  it("retries lifecycle calls without changing closed state; rejects early transitions", async function () {
     await expect(c.openElection(election)).to.be.revertedWithCustomError(c,"InvalidState");
     await register();
-    await expect(register()).to.be.revertedWithCustomError(c,"InvalidState");
+    await expect(register()).to.emit(c,"ElectionRegistered");
+    await expect(c.registerElection(election,result)).to.be.revertedWithCustomError(c,"ConfigurationConflict");
     await expect(c.closeElection(election)).to.be.revertedWithCustomError(c,"InvalidState");
     await c.openElection(election);
-    await expect(c.openElection(election)).to.be.revertedWithCustomError(c,"InvalidState");
+    await expect(c.openElection(election)).to.emit(c,"ElectionOpened");
     await c.closeElection(election);
-    await expect(c.closeElection(election)).to.be.revertedWithCustomError(c,"InvalidState");
-    await expect(c.openElection(election)).to.be.revertedWithCustomError(c,"InvalidState");
+    await expect(c.closeElection(election)).to.emit(c,"ElectionClosed");
+    await expect(c.openElection(election)).to.emit(c,"ElectionOpened");
+    expect((await c.getElection(election)).state).to.equal(3n);
   });
-  it("rejects results before closure and a second result", async function () {
+  it("rejects early/conflicting results and re-emits identical results", async function () {
     await open();
     await expect(c.publishResult(election,result)).to.be.revertedWithCustomError(c,"InvalidState");
     await c.closeElection(election); await c.publishResult(election,result);
-    await expect(c.publishResult(election,result)).to.be.revertedWithCustomError(c,"ResultAlreadyPublished");
+    await expect(c.publishResult(election,result)).to.emit(c,"ResultPublished");
+    await expect(c.publishResult(election,commitment)).to.be.revertedWithCustomError(c,"ResultAlreadyPublished");
   });
   it("rejects zero identifiers/commitments and zero constructor addresses", async function () {
     await expect(ethers.deployContract("ElectionRegistry",[ethers.ZeroAddress,relayer.address])).to.be.revertedWithCustomError(c,"ZeroValue");

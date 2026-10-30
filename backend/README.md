@@ -1,3 +1,5 @@
+> Updated interface: see [the 2026-10-31 decision](../docs/decisions/2026-10-31-blockchain-interface.md) and [run guide](../docs/local-chain.md). Registration now includes config_hash and is queued at opening; closure uses closing until all ballots and the close transaction confirm. These rules supersede any older lifecycle/no-ordering descriptions below.
+
 # VoteVault Backend (milestone 1)
 
 FastAPI + SQLAlchemy 2 + Alembic on Supabase PostgreSQL, Supabase Auth JWT

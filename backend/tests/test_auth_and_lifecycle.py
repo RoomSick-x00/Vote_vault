@@ -132,8 +132,8 @@ def test_full_lifecycle_creates_publication_jobs(client, app):
     assert opened["opened_at"].endswith("Z")
 
     closed = close_election(client, election_id)
-    assert closed["status"] == "closed"
-    assert closed["closed_at"].endswith("Z")
+    assert closed["status"] == "closing"
+    assert closed["closed_at"] is None
 
     # register/open/close/publish_result jobs exist; register + open + close + result = 4
     jobs_resp = client.get(

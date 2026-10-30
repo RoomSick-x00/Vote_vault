@@ -1,3 +1,5 @@
+> Historical proposal. Superseded by docs/decisions/2026-10-31-blockchain-interface.md (project-owner approved).
+
 # Decision: on-chain interface for milestone 1 — Member 2 response to Member 3
 
 - Date: 2026-10-30

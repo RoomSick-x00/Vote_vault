@@ -82,6 +82,8 @@ class FakeChainPublisher:
             data = _hex_to_bytes32(payload["commitment"])
         else:
             topics.append(_RELAYER_PLACEHOLDER)
+            if job_type == "register_election":
+                data = _hex_to_bytes32(payload["config_hash"])
             if job_type == "publish_result":
                 data = _hex_to_bytes32(payload["result_hash"])
         return ChainLog(topics=topics, data=data)

@@ -16,6 +16,7 @@ async function main() {
     relayer: relayer.address, transactionHash: receipt.hash, blockNumber: receipt.blockNumber,
     runtimeCodeHash: ethers.keccak256(await ethers.provider.getCode(await registry.getAddress())) };
   fs.writeFileSync(path.join(out, "deployment.json"), JSON.stringify(manifest, null, 2) + "\n");
+  fs.writeFileSync(path.join(out, "..", "localhost.json"), JSON.stringify({ ...manifest, abi: artifact.abi }, null, 2) + "\n");
   console.log(JSON.stringify(manifest, null, 2));
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

@@ -28,7 +28,7 @@ from app.models import Ballot, Election, PublicationJob
 
 # Payload argument names per job type, in Solidity argument order.
 JOB_ARG_ORDER: dict[str, list[str]] = {
-    "register_election": ["election_id"],
+    "register_election": ["election_id", "config_hash"],
     "open_election": ["election_id"],
     "publish_ballot": ["election_id", "ballot_id", "commitment"],
     "close_election": ["election_id"],
@@ -79,7 +79,7 @@ def get_ballot_job(db: Session, ballot_id: uuid.UUID) -> PublicationJob | None:
     ).first()
 
 
-def process_due_jobs(
+def _process_due_jobs(
     session_factory: sessionmaker[Session],
     publisher: ChainPublisher,
     settings: Settings,
@@ -100,9 +100,14 @@ def process_due_jobs(
                 ),
             )
             .order_by(PublicationJob.created_at)
-            .limit(limit)
         ).all()
+        attempted = 0
         for job in jobs:
+            if attempted >= limit:
+                break
+            if not dependencies_confirmed(db, job):
+                continue
+            attempted += 1
             outcome = attempt_job(db, job, publisher, settings)
             summary[outcome] += 1
     return summary
@@ -112,6 +117,8 @@ def attempt_job(
     db: Session, job: PublicationJob, publisher: ChainPublisher, settings: Settings
 ) -> str:
     """Run one attempt; commits after every state transition so a crash loses nothing."""
+    if not dependencies_confirmed(db, job):
+        return "retry_scheduled"
     now = utcnow()
     job.attempts += 1
     db.commit()  # the attempt itself is audit state, persist it before sending
@@ -139,6 +146,10 @@ def attempt_job(
     job.block_number = receipt.block_number
     job.confirmed_at = utcnow()
     job.last_error = None
+    if job.job_type == "close_election":
+        election = db.get(Election, job.election_id)
+        election.status = "closed"
+        election.closed_at = utcnow()
     db.commit()
     return "confirmed"
 
@@ -184,6 +195,8 @@ def _expected_topics(job: PublicationJob) -> list[bytes]:
 
 
 def _expected_data_word(job: PublicationJob) -> bytes | None:
+    if job.job_type == "register_election":
+        return _hex_to_bytes(job.payload["config_hash"])
     if job.job_type == "publish_ballot":
         return _hex_to_bytes(job.payload["commitment"])
     if job.job_type == "publish_result":
@@ -243,3 +256,47 @@ def require_ballot_of_election(db: Session, ballot_id: uuid.UUID, election_id: u
     if ballot is None or ballot.election_id != election_id:
         raise ApiError(404, "NOT_FOUND", "Receipt not found for this election.")
     return ballot
+
+
+def dependencies_confirmed(db: Session, job: PublicationJob) -> bool:
+    """Do not spend attempts on blocked jobs; failed prerequisites remain visible."""
+    jobs = list(db.scalars(select(PublicationJob).where(PublicationJob.election_id == job.election_id)))
+    def confirmed(kind):
+        rows = [j for j in jobs if j.job_type == kind]
+        return bool(rows) and all(j.status == "confirmed" for j in rows)
+    if job.job_type == "register_election":
+        return bool(job.payload.get("config_hash"))
+    if job.job_type == "open_election":
+        return confirmed("register_election")
+    if job.job_type == "publish_ballot":
+        return confirmed("open_election")
+    if job.job_type == "close_election":
+        if not confirmed("open_election"):
+            return False
+        ballots = list(db.scalars(select(Ballot).where(Ballot.election_id == job.election_id, Ballot.accepted.is_(True))))
+        return all(any(j.ballot_id == b.id and j.job_type == "publish_ballot" and j.status == "confirmed" for j in jobs) for b in ballots)
+    if job.job_type == "publish_result":
+        return confirmed("close_election")
+    return False
+
+
+# Single signer: serialize processing across threads and PostgreSQL worker processes.
+# Session-level advisory lock uses a dedicated connection so per-job commits do not release it.
+from threading import Lock
+_publisher_lock = Lock()
+
+
+def process_due_jobs(session_factory, publisher, settings, limit=50):
+    with _publisher_lock:
+        engine = session_factory.kw["bind"]
+        if engine.dialect.name != "postgresql":
+            return _process_due_jobs(session_factory, publisher, settings, limit)
+        from sqlalchemy import text
+        with engine.connect() as lock_connection:
+            acquired = lock_connection.scalar(text("SELECT pg_try_advisory_lock(867530931337)"))
+            if not acquired:
+                return {"confirmed": 0, "retry_scheduled": 0, "failed": 0}
+            try:
+                return _process_due_jobs(session_factory, publisher, settings, limit)
+            finally:
+                lock_connection.execute(text("SELECT pg_advisory_unlock(867530931337)"))

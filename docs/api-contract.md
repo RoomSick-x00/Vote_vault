@@ -1,3 +1,5 @@
+> Lifecycle update (2026-10-31): configuration freezes at opening; close returns closing until accepted ballots and on-chain close confirm. See [the locked chain agreement](decisions/2026-10-31-blockchain-interface.md).
+
 # API contract — agreed and implemented (milestone 1)
 
 **Status: implemented** on branch `backend/m1-skeleton` (backend owner: Member 2).
