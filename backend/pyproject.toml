@@ -1,0 +1,31 @@
+[project]
+name = "votevault-backend"
+version = "0.1.0"
+description = "VoteVault milestone-1 backend: FastAPI + SQLAlchemy on Supabase PostgreSQL, Web3.py BallotRegistry publisher. Synthetic-data skeleton; backend demo tally only."
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "pydantic>=2.8",
+    "pydantic-settings>=2.4",
+    "sqlalchemy>=2.0.40",
+    "alembic>=1.13",
+    "psycopg[binary]>=3.2",
+    "pyjwt>=2.9",
+    "cryptography>=43.0",
+    "web3>=7.0",
+    "httpx>=0.27",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "httpx>=0.27",
+    "pgserver>=0.0.1",        # bundled PostgreSQL for tests, no root needed
+    "eth-tester[py-evm]>=0.11",  # in-memory EVM chain for Web3 publisher tests
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = ["ignore::DeprecationWarning"]

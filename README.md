@@ -1,6 +1,14 @@
 # VoteVault
 
-VoteVault is a campus/club election prototype built by three teammates. This repository currently contains a directory scaffold and planning documents only. No features, dependencies, runtime configuration, or tests have been implemented or executed; the application is not claimed to run.
+VoteVault is a campus/club election prototype built by three teammates.
+
+**Status:** milestone-1 **backend implemented** on branch `backend/m1-skeleton`
+(FastAPI + SQLAlchemy + Alembic, Supabase Auth verification, Web3.py
+publication, 51 passing tests, end-to-end demo via `backend/scripts/demo.py`).
+Contracts/decisions in `docs/api-contract.md` and `docs/decisions/`. Frontend
+and Solidity contract are still scaffold-only. All data is synthetic; results
+are labeled “backend demo tally; independent private tally verification
+pending.”
 
 ## Milestones
 
@@ -37,7 +45,11 @@ Empty leaf directories contain `.gitkeep` placeholders only. There are no packag
 
 ## Environment template
 
-`.env.example` is an inventory of proposed variable names only, not a loadable environment configuration. Values, exact naming, and per-service configuration will be agreed during implementation. Never put real credentials in this template. Browser configuration may use only public Supabase settings; database credentials and the local signer key belong exclusively to backend/integration processes.
+`.env.example` (root) is an inventory of variable names; `backend/.env.example`
+is the backend's authoritative template with setup notes. Never put real
+credentials in any template. Browser configuration may use only public Supabase
+settings; database credentials and the local signer key belong exclusively to
+backend/integration processes.
 
 ## Team decisions before implementation
 
