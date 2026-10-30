@@ -1,5 +1,5 @@
-"""BallotRegistry ABI — the interface agreed on 2026-10-30 (see
-docs/decisions/2026-10-30-blockchain-interface.md). The blockchain teammate's
+"""ElectionRegistry ABI — the interface agreed on 2026-10-31 (see
+docs/decisions/2026-10-31-blockchain-interface.md). The blockchain teammate's
 Hardhat contract must match these signatures and events; this constant is what
 Web3.py encodes calls and verifies logs against.
 """

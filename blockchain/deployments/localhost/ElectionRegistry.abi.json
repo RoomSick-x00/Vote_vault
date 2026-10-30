@@ -497,7 +497,7 @@
       },
       {
         "internalType": "bytes32",
-        "name": "commitment",
+        "name": "resultHash",
         "type": "bytes32"
       }
     ],
@@ -515,7 +515,7 @@
       },
       {
         "internalType": "bytes32",
-        "name": "configurationCommitment",
+        "name": "configHash",
         "type": "bytes32"
       }
     ],

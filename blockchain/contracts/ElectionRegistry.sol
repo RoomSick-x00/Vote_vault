@@ -33,14 +33,14 @@ contract ElectionRegistry is AccessControl {
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
         _grantRole(RELAYER_ROLE, relayer);
     }
-    function registerElection(bytes32 electionId, bytes32 configurationCommitment) external onlyRole(RELAYER_ROLE) {
-        nonzero(electionId); nonzero(configurationCommitment);
+    function registerElection(bytes32 electionId, bytes32 configHash) external onlyRole(RELAYER_ROLE) {
+        nonzero(electionId); nonzero(configHash);
         if (elections[electionId].state == State.Unregistered) {
-            elections[electionId] = Election(State.Registered, configurationCommitment, bytes32(0), 0);
-        } else if (elections[electionId].configurationCommitment != configurationCommitment) {
+            elections[electionId] = Election(State.Registered, configHash, bytes32(0), 0);
+        } else if (elections[electionId].configurationCommitment != configHash) {
             revert ConfigurationConflict(electionId);
         }
-        emit ElectionRegistered(electionId, configurationCommitment, msg.sender);
+        emit ElectionRegistered(electionId, configHash, msg.sender);
     }
     function openElection(bytes32 electionId) external onlyRole(RELAYER_ROLE) {
         if (elections[electionId].state == State.Registered) {
@@ -69,11 +69,11 @@ contract ElectionRegistry is AccessControl {
         }
         emit BallotPublished(electionId, ballotId, commitment, msg.sender);
     }
-    function publishResult(bytes32 electionId, bytes32 commitment) external onlyRole(RELAYER_ROLE) {
-        requireState(electionId, State.Closed); nonzero(commitment);
-        if (elections[electionId].resultCommitment != bytes32(0) && elections[electionId].resultCommitment != commitment) revert ResultAlreadyPublished(electionId);
-        elections[electionId].resultCommitment = commitment;
-        emit ResultPublished(electionId, commitment, msg.sender);
+    function publishResult(bytes32 electionId, bytes32 resultHash) external onlyRole(RELAYER_ROLE) {
+        requireState(electionId, State.Closed); nonzero(resultHash);
+        if (elections[electionId].resultCommitment != bytes32(0) && elections[electionId].resultCommitment != resultHash) revert ResultAlreadyPublished(electionId);
+        elections[electionId].resultCommitment = resultHash;
+        emit ResultPublished(electionId, resultHash, msg.sender);
     }
     function getElection(bytes32 electionId) external view returns (State state, bytes32 configurationCommitment, bytes32 resultCommitment, uint256 ballotCount) {
         Election storage e = elections[electionId];

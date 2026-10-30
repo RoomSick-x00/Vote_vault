@@ -1,4 +1,4 @@
-"""Chain publishers: submit BallotRegistry calls and read transaction results.
+"""Chain publishers: submit ElectionRegistry calls and read transaction results.
 
 Web3RegistryPublisher talks to the Hardhat local chain over HTTP, signs with the
 relayer key (LOCAL_CHAIN_SIGNER_PRIVATE_KEY — backend environment only, never

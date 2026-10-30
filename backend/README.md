@@ -4,7 +4,7 @@
 
 FastAPI + SQLAlchemy 2 + Alembic on Supabase PostgreSQL, Supabase Auth JWT
 verification, and Web3.py publication of ballot commitments to the local
-Hardhat chain (`BallotRegistry`, chain id 31337).
+Hardhat chain (`ElectionRegistry`, chain id 31337).
 
 **Scope label: “backend demo tally; independent private tally verification pending.”**
 This is a synthetic-data skeleton: identified test voters, plaintext choices in
@@ -23,7 +23,7 @@ app/
   models/          SQLAlchemy models (7 tables)
   schemas/         Pydantic request/response shapes
   services/        ballot rules, commitment scheme, publication queue, tally
-  blockchain/      BallotRegistry ABI + Web3 publisher
+  blockchain/      ElectionRegistry ABI + Web3 publisher
   db/              base/session
   eth_events.py    event log verification (topics/data equality)
 alembic/           migrations (the ONLY way the schema changes)

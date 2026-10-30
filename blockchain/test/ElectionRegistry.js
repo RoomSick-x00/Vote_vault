@@ -10,6 +10,10 @@ describe("ElectionRegistry", function () {
     c = c.connect(relayer);
   });
   const register = async () => c.registerElection(election, commitment);
+  it("uses the agreed configHash argument name", function () {
+    expect(c.interface.getFunction("registerElection").inputs[1].name).to.equal("configHash");
+    expect(c.interface.getFunction("publishResult").inputs[1].name).to.equal("resultHash");
+  });
   const open = async () => { await register(); await c.openElection(election); };
   it("records the normal lifecycle and exact commitment events", async function () {
     await expect(register()).to.emit(c,"ElectionRegistered").withArgs(election,commitment,relayer.address);
