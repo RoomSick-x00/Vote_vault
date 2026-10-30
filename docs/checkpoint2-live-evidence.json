@@ -1,0 +1,225 @@
+{
+  "scope": "live HTTP API + PostgreSQL + Hardhat; synthetic dev JWT users; backend demo tally only",
+  "started_at": "2026-10-30T21:07:37.612348+00:00",
+  "api": [],
+  "chain": [],
+  "failure_checks": [],
+  "last_stage": "Start live Uvicorn API with its existing background worker",
+  "abi_verified": [
+    {
+      "kind": "function",
+      "name": "registerElection",
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "electionId",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "configurationCommitment",
+          "type": "bytes32"
+        }
+      ]
+    },
+    {
+      "kind": "function",
+      "name": "openElection",
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "electionId",
+          "type": "bytes32"
+        }
+      ]
+    },
+    {
+      "kind": "function",
+      "name": "closeElection",
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "electionId",
+          "type": "bytes32"
+        }
+      ]
+    },
+    {
+      "kind": "function",
+      "name": "publishBallot",
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "electionId",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "ballotId",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "commitment",
+          "type": "bytes32"
+        }
+      ]
+    },
+    {
+      "kind": "function",
+      "name": "publishResult",
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "electionId",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "commitment",
+          "type": "bytes32"
+        }
+      ]
+    },
+    {
+      "kind": "event",
+      "name": "ElectionRegistered",
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "electionId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes32",
+          "name": "configHash",
+          "type": "bytes32"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "relayer",
+          "type": "address"
+        }
+      ]
+    },
+    {
+      "kind": "event",
+      "name": "ElectionOpened",
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "electionId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "relayer",
+          "type": "address"
+        }
+      ]
+    },
+    {
+      "kind": "event",
+      "name": "ElectionClosed",
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "electionId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "relayer",
+          "type": "address"
+        }
+      ]
+    },
+    {
+      "kind": "event",
+      "name": "BallotPublished",
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "electionId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "ballotId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes32",
+          "name": "commitment",
+          "type": "bytes32"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "relayer",
+          "type": "address"
+        }
+      ]
+    },
+    {
+      "kind": "event",
+      "name": "ResultPublished",
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "electionId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes32",
+          "name": "resultHash",
+          "type": "bytes32"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "relayer",
+          "type": "address"
+        }
+      ]
+    }
+  ],
+  "deployment": {
+    "chainId": 31337,
+    "address": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+    "relayer": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+    "transactionHash": "0x4264218c0fcc13a3ab66a886f4644e872679b31670d449b0420642e04f4c91bf",
+    "blockNumber": 2,
+    "runtimeCodeHash": "0xb719afeaf26547d2de146d5bcca1e20447930cf526d58823d2b6abc8d76fa5ab"
+  },
+  "rpc_url": "http://127.0.0.1:8545",
+  "api_url": "http://127.0.0.1:8010",
+  "database": {
+    "dialect": "postgresql",
+    "migrations": "upgrade head"
+  },
+  "backend_command": [
+    "C:\\Users\\mailp\\OneDrive\\Desktop\\VVT\\.venv\\Scripts\\python.exe",
+    "-m",
+    "uvicorn",
+    "app.main:app",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "8010"
+  ],
+  "passed": false,
+  "error": "RuntimeError: Uvicorn exited during startup; inspect .local/checkpoint2/backend.log"
+}

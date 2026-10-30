@@ -3,7 +3,6 @@ import {
   ArrowRight,
   FileSpreadsheet,
   KeyRound,
-  MailCheck,
   QrCode,
   Shield,
   ShieldCheck,
@@ -15,15 +14,15 @@ import HowItWorks from '../components/HowItWorks'
 import { useAuth } from '../context/AuthContext'
 
 const ORGANIZER_STEPS = [
-  { icon: UserPlus, title: 'Create an account', body: 'Sign up as an organiser. Every election belongs to your account.' },
-  { icon: FileSpreadsheet, title: 'Add your voter list', body: 'Upload a CSV / Excel file or add voters one by one. Choose which columns are mandatory.' },
-  { icon: QrCode, title: 'Share the code & QR', body: 'Each election gets a join code and a QR. Voters use either to reach the Voter Hub.' },
+  { icon: UserPlus, title: 'Create an account', body: 'Sign up as an organiser. Your organisation and elections are created in one flow.' },
+  { icon: FileSpreadsheet, title: 'Add candidates & eligible voters', body: 'Add candidates to the draft, then whitelist voters by their VoteVault user ID.' },
+  { icon: QrCode, title: 'Open voting & share the link', body: 'Open the election and share the link or QR. Ballot commitments publish to the chain as votes arrive.' },
 ]
 
 const VOTER_STEPS = [
-  { icon: KeyRound, title: 'Enter code or scan QR', body: 'Open the Voter Hub and join the election with its code or by scanning the QR.' },
-  { icon: ShieldCheck, title: 'Confirm your identity', body: 'Enter your name and roll number. They are checked against the organiser’s voter list.' },
-  { icon: MailCheck, title: 'Verify with OTP', body: 'Receive a one-time code on your registered email or phone, then cast your ballot.' },
+  { icon: KeyRound, title: 'Open the election link', body: 'Open the Voter Hub and paste the election ID or link your organiser shared.' },
+  { icon: ShieldCheck, title: 'Sign in', body: 'Sign in with your VoteVault account — only whitelisted voters can cast a ballot.' },
+  { icon: Vote, title: 'Vote & keep your receipt', body: 'Cast one ballot and keep the commitment + nonce so you can verify it was recorded.' },
 ]
 
 function Steps({ steps, tone }: { steps: typeof ORGANIZER_STEPS; tone: 'saffron' | 'electric' }) {
@@ -59,7 +58,7 @@ export default function Home() {
       <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mx-auto mb-10 max-w-2xl text-center">
           <h2 className="font-display text-3xl font-extrabold text-paper sm:text-4xl">Choose your portal</h2>
-          <p className="mt-2 text-sm text-ash">Organisers run the election. Voters join with a code.</p>
+          <p className="mt-2 text-sm text-ash">Organisers run the election. Voters open it with the election link.</p>
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">

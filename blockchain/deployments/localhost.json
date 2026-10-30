@@ -1,11 +1,11 @@
 {
   "chainId": 31337,
-  "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+  "address": "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9",
   "admin": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
   "relayer": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
-  "transactionHash": "0x886ce0e9f65e50345eb91826a082de1ae16e3433382bb924d7d2aa184f8f397f",
-  "blockNumber": 1,
-  "runtimeCodeHash": "0x67c5d0049a60cdaea152e397f247380ec853ca80ee553a944b343af1edc3f145",
+  "transactionHash": "0x96c5366b42b990ccc68adb797edeb9496c05596abd2445c4c9b1cf822980daab",
+  "blockNumber": 4,
+  "runtimeCodeHash": "0x63ea09ec4eb787b326a9071216e63d8a71d2643fe16da45064f2c2840de8f425",
   "abi": [
     {
       "inputs": [
@@ -505,7 +505,7 @@
         },
         {
           "internalType": "bytes32",
-          "name": "commitment",
+          "name": "resultHash",
           "type": "bytes32"
         }
       ],
@@ -523,7 +523,7 @@
         },
         {
           "internalType": "bytes32",
-          "name": "configurationCommitment",
+          "name": "configHash",
           "type": "bytes32"
         }
       ],

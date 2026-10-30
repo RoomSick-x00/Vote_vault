@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     # --- HTTP ---
     cors_allowed_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 
-    # --- blockchain (Hardhat local chain, per docs/decisions/2026-10-30-blockchain-interface.md) ---
+    # --- blockchain (Hardhat local chain, per docs/decisions/2026-10-31-blockchain-interface.md) ---
     blockchain_rpc_url: str = ""  # e.g. http://127.0.0.1:8545
     blockchain_chain_id: int = 31337  # Hardhat network chain id
     ballot_registry_contract_address: str = ""

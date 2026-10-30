@@ -7,84 +7,84 @@
     {
       "operation": "registerElection",
       "expected": {
-        "electionId": "0x167e5b8a14b28593a662eb6028e333504c55d1abd82054b8ea1ec343db678756",
-        "configurationCommitment": "0x28448ed31164843ba00e3ffc6c6868dbce1ce7cea0d66588ffbfef180108e07e"
+        "electionId": "0x48a6eb1021f4365b032968b70fcdb1aee30b5821f4e91dc7c34ab50a4d9088f6",
+        "configurationCommitment": "0xe459d3462d5b2c5bf50efa6df0f03f60799cc9d1e57a09bbc8cc64ada6829b91"
       },
       "receipt": {
-        "transaction_hash": "0x4947f0a73d51d5e9163def24da5653e699a980ad41121f0dec687459af6650a6",
+        "transaction_hash": "0xf924e78a87e040df920f6c7c0b5166ff6e854fe1f810acbb458739ce657e334e",
         "chain_id": 31337,
         "contract_address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
-        "block_number": 18,
-        "block_hash": "0xd43146a9030a42db1c2b05beb1b72c9640c948b2ad1cbd41dbf1b329f9d8fb41",
+        "block_number": 26,
+        "block_hash": "0xd6a38b768bb0c2ffcc0b5ff7c3ac7ca78bb8dc7820e91a8f6b12969dd6cce396",
         "status": "confirmed",
-        "electionId": "0x167e5b8a14b28593a662eb6028e333504c55d1abd82054b8ea1ec343db678756",
-        "configurationCommitment": "0x28448ed31164843ba00e3ffc6c6868dbce1ce7cea0d66588ffbfef180108e07e"
+        "electionId": "0x48a6eb1021f4365b032968b70fcdb1aee30b5821f4e91dc7c34ab50a4d9088f6",
+        "configurationCommitment": "0xe459d3462d5b2c5bf50efa6df0f03f60799cc9d1e57a09bbc8cc64ada6829b91"
       }
     },
     {
       "operation": "openElection",
       "expected": {
-        "electionId": "0x167e5b8a14b28593a662eb6028e333504c55d1abd82054b8ea1ec343db678756"
+        "electionId": "0x48a6eb1021f4365b032968b70fcdb1aee30b5821f4e91dc7c34ab50a4d9088f6"
       },
       "receipt": {
-        "transaction_hash": "0xab710b9eaff40b2065a7878a4b43668e30949cdf58e3d0891afbb8116300ec26",
+        "transaction_hash": "0x37b9367d38bd6d51ad318f1380abf1b8ee1f2f0ee0c6fc5f083bc52fef25810b",
         "chain_id": 31337,
         "contract_address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
-        "block_number": 19,
-        "block_hash": "0x5d9969af6108724f16c92b3b716b6399a14f21710c565b2f24d011051ecf383e",
+        "block_number": 27,
+        "block_hash": "0xf99e6c6eea21aca22fcc79a7ddf1ad9a8d7b83cb47fff4841ad33d3e59122a01",
         "status": "confirmed",
-        "electionId": "0x167e5b8a14b28593a662eb6028e333504c55d1abd82054b8ea1ec343db678756"
+        "electionId": "0x48a6eb1021f4365b032968b70fcdb1aee30b5821f4e91dc7c34ab50a4d9088f6"
       }
     },
     {
       "operation": "publishBallot",
       "expected": {
-        "electionId": "0x167e5b8a14b28593a662eb6028e333504c55d1abd82054b8ea1ec343db678756",
-        "ballotId": "0xdef5957d8213679a1d0e529792f3186b6150b055e7b9535e22f1439ffb95ccf8",
-        "commitment": "0x4f8fa82d8c407a0bb1f02d704df0d30a26fe41582e59197bf257ccaed3e92de0"
+        "electionId": "0x48a6eb1021f4365b032968b70fcdb1aee30b5821f4e91dc7c34ab50a4d9088f6",
+        "ballotId": "0x5c19107f0ed7e007b17d0b732a2fe0296f254565a46e8612c5186e419ef91a1b",
+        "commitment": "0x2bf1d04f722d13c687262760f7d019dcbcdc178065c69ac13f68c0e401f0e1b9"
       },
       "receipt": {
-        "transaction_hash": "0x2d6517f3318a28a0a94a73cf47b30a599d1ac6885fa45a69c85b87746ebd0f97",
+        "transaction_hash": "0x8dc85056f95a179c1f2286da207ea6e8eba960a56011d154ed97d775d7816dfc",
         "chain_id": 31337,
         "contract_address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
-        "block_number": 20,
-        "block_hash": "0x348807d0597a68f308e8ff7f2e2ef31128605da5088bbed0c3672ee6bed5541f",
+        "block_number": 28,
+        "block_hash": "0xee57e0ae7f1e79b10d270785157f9a6ffa88dc4cbabdd8b9fd1d47cd84ff60eb",
         "status": "confirmed",
-        "electionId": "0x167e5b8a14b28593a662eb6028e333504c55d1abd82054b8ea1ec343db678756",
-        "ballotId": "0xdef5957d8213679a1d0e529792f3186b6150b055e7b9535e22f1439ffb95ccf8",
-        "commitment": "0x4f8fa82d8c407a0bb1f02d704df0d30a26fe41582e59197bf257ccaed3e92de0"
+        "electionId": "0x48a6eb1021f4365b032968b70fcdb1aee30b5821f4e91dc7c34ab50a4d9088f6",
+        "ballotId": "0x5c19107f0ed7e007b17d0b732a2fe0296f254565a46e8612c5186e419ef91a1b",
+        "commitment": "0x2bf1d04f722d13c687262760f7d019dcbcdc178065c69ac13f68c0e401f0e1b9"
       }
     },
     {
       "operation": "closeElection",
       "expected": {
-        "electionId": "0x167e5b8a14b28593a662eb6028e333504c55d1abd82054b8ea1ec343db678756"
+        "electionId": "0x48a6eb1021f4365b032968b70fcdb1aee30b5821f4e91dc7c34ab50a4d9088f6"
       },
       "receipt": {
-        "transaction_hash": "0x0ca1e9be4fb7c2511fbcfb502901e032c8d6f5bb574c291aff31e5193df59e82",
+        "transaction_hash": "0x5e36338f5271ac82e2a69c49fab56ea6842fadaf44490a97b08d00f8db029000",
         "chain_id": 31337,
         "contract_address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
-        "block_number": 21,
-        "block_hash": "0x8108527a3ccf76372f86134d26705fcdc985a8902d1bf8b8bb660f4b453d893d",
+        "block_number": 29,
+        "block_hash": "0xae81a969d35c2bcbf896e9e659106f03c9b0be196fe7d31ee868d351eddeb32a",
         "status": "confirmed",
-        "electionId": "0x167e5b8a14b28593a662eb6028e333504c55d1abd82054b8ea1ec343db678756"
+        "electionId": "0x48a6eb1021f4365b032968b70fcdb1aee30b5821f4e91dc7c34ab50a4d9088f6"
       }
     },
     {
       "operation": "publishResult",
       "expected": {
-        "electionId": "0x167e5b8a14b28593a662eb6028e333504c55d1abd82054b8ea1ec343db678756",
-        "commitment": "0x7f55bf1d2eacedfa54b3af0027355ec57b635142cfa6901c2a21eb7d9bfbe127"
+        "electionId": "0x48a6eb1021f4365b032968b70fcdb1aee30b5821f4e91dc7c34ab50a4d9088f6",
+        "commitment": "0xeb4257544512892986e37acbc583b56896978e2d5bbba042328c24cb1e95a3d4"
       },
       "receipt": {
-        "transaction_hash": "0x764bc9e49b6c46d2809f52d77989cb03faa1757453f83ed4c70c9887cbfbb2e6",
+        "transaction_hash": "0x580ee0d89a337d13829669dc0f6958b099f297f9fa89421d92a12626c13f812b",
         "chain_id": 31337,
         "contract_address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
-        "block_number": 22,
-        "block_hash": "0xa91052fae68f33e1bb2256bd3174dd115d24747211df2e20afbd57a75283f78d",
+        "block_number": 30,
+        "block_hash": "0x5cd42d0524d96fdd5a1d8e040d72c4bb9786da972832bd5bb6427abd37cb089a",
         "status": "confirmed",
-        "electionId": "0x167e5b8a14b28593a662eb6028e333504c55d1abd82054b8ea1ec343db678756",
-        "commitment": "0x7f55bf1d2eacedfa54b3af0027355ec57b635142cfa6901c2a21eb7d9bfbe127"
+        "electionId": "0x48a6eb1021f4365b032968b70fcdb1aee30b5821f4e91dc7c34ab50a4d9088f6",
+        "commitment": "0xeb4257544512892986e37acbc583b56896978e2d5bbba042328c24cb1e95a3d4"
       }
     }
   ]
