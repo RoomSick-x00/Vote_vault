@@ -54,8 +54,8 @@ export default function App() {
               </Route>
 
               <Route path="/voter" element={<VoterHub />} />
-              <Route path="/vote/:code" element={<VoterSession />} />
-              <Route path="/receipt/:receiptId" element={<ReceiptScreen />} />
+              <Route path="/vote/:electionId" element={<VoterSession />} />
+              <Route path="/receipt/:electionId/:receiptId" element={<ReceiptScreen />} />
               <Route path="/results/:id" element={<ResultsAudit />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

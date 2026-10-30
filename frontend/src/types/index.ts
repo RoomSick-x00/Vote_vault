@@ -1,181 +1,219 @@
-export interface Organizer {
-  id: string
-  name: string
+/**
+ * Types mirrored 1:1 from the implemented backend contract (docs/api-contract.md).
+ * Field names are snake_case exactly as the API returns them — no client-side
+ * renaming, so payloads stay diffable against the contract.
+ */
+
+// ---------- Auth (Supabase-backed, proxied by the backend) ----------
+
+export interface UserRef {
+  user_id: string
   email: string
-  organization?: string
+  full_name: string
 }
 
-export interface OrganizerSession {
-  user: Organizer
-  token: string
+export interface OrgRef {
+  organization_id: string
+  name: string
+  role: string
 }
+
+/** POST /auth/signup and /auth/login response. */
+export interface AuthSession {
+  access_token: string
+  refresh_token?: string | null
+  token_type?: string
+  expires_in?: number
+  user: UserRef
+  organizations: OrgRef[]
+}
+
+/** GET /auth/me response (organizer context in the app). */
+export interface AuthMe {
+  user_id: string
+  email: string
+  full_name: string
+  organizations: OrgRef[]
+}
+
+/** Organizer as the auth context sees it. */
+export interface Organizer {
+  user_id: string
+  email: string
+  full_name: string
+  organizations: OrgRef[]
+}
+
+// ---------- Organizations ----------
+
+export interface Organization {
+  organization_id: string
+  name: string
+  role: string
+  created_at: string
+}
+
+export interface OrganizationListOut {
+  organizations: Organization[]
+}
+
+// ---------- Elections ----------
+
+/** Backend statuses. `closing`: close requested, accepted ballots still draining to chain. */
+export type ElectionStatus = 'draft' | 'open' | 'closing' | 'closed'
+export type PublicationStatus = 'pending' | 'confirmed' | 'failed'
+export type PublishedResultStatus = 'not_published' | 'pending' | 'confirmed' | 'failed'
 
 export interface Candidate {
-  id: string
+  candidate_id: string
   name: string
-  description: string
-}
-
-export type ElectionStatus = 'draft' | 'open' | 'closed'
-export type PublicationStatus = 'pending' | 'confirmed' | 'failed'
-export type ResultCommitmentStatus = 'uncommitted' | 'pending' | 'confirmed'
-
-/** Voter-list columns an organizer can require. */
-export type ColumnKey = 'name' | 'rollNo' | 'email' | 'phone'
-export type OtpChannel = 'email' | 'phone'
-
-export interface VoterSchema {
-  /** Columns the voter must type in to be matched against the database (e.g. name, rollNo). */
-  identityColumns: Array<'name' | 'rollNo'>
-  /** Channels allowed for OTP delivery. The matching column becomes mandatory in the voter list. */
-  otpChannels: OtpChannel[]
-}
-
-export interface BlockchainTxInfo {
-  genesisTx?: string
-  resultTx?: string
-  blockNumber?: number
-  confirmedAt?: string
+  /** Immutable 0-based insertion order used as the on-chain index. */
+  chain_index: number
 }
 
 export interface Election {
-  id: string
-  /** Short join code voters enter (also encoded in the QR). */
-  code: string
+  election_id: string
+  organization_id: string
   title: string
-  description: string
   status: ElectionStatus
-  publicationStatus: PublicationStatus
   candidates: Candidate[]
-  voterSchema: VoterSchema
-  createdAt: string
-  openedAt?: string
-  closedAt?: string
-  voterCount: number
-  ballotCount: number
-  blockchainTx?: BlockchainTxInfo
-  resultCommitmentStatus: ResultCommitmentStatus
+  created_at: string
+  opens_at?: string | null
+  closes_at?: string | null
+  opened_at?: string | null
+  closed_at?: string | null
 }
 
 export interface CreateElectionPayload {
+  organization_id: string
   title: string
-  description: string
-  candidates: Array<{ name: string; description: string }>
-  voterSchema: VoterSchema
+  opens_at?: string | null
+  closes_at?: string | null
 }
 
-export interface VoterRecord {
-  id: string
-  name?: string
-  rollNo?: string
-  email?: string
-  phone?: string
-  hasVoted: boolean
-  addedAt: string
-}
-
-export interface VoterInput {
-  name?: string
-  rollNo?: string
-  email?: string
-  phone?: string
-}
-
-export interface VoterImportReport {
-  imported: number
-  skipped: number
-  errors: Array<{ row: number; message: string }>
-}
-
-// ---- Voter session (public, code based) ----
-
-/** Public election info shown before the voter identifies themselves. */
-export interface PublicElection {
-  id: string
-  code: string
-  title: string
-  description: string
+export interface OpenElectionOut {
+  election_id: string
   status: ElectionStatus
-  voterSchema: VoterSchema
+  opened_at: string
 }
 
-export interface IdentifyResponse {
-  /** Short-lived token that links identify → OTP steps. */
-  identifyToken: string
-  /** Channels the voter may use for OTP. */
-  channels: OtpChannel[]
+export interface CloseElectionOut {
+  election_id: string
+  status: ElectionStatus
+  closed_at: string | null
 }
 
-export interface OtpRequestResponse {
-  /** Seconds before another OTP may be requested. */
-  resendAfter: number
-  /** Seconds until the OTP expires. */
-  expiresIn: number
-  channel: OtpChannel
+export interface CandidatesAddPayload {
+  candidates: Array<{ name: string }>
 }
 
-export interface VoterSessionInfo {
-  election: PublicElection
+export interface CandidatesOut {
+  election_id: string
   candidates: Candidate[]
-  voterName: string
-  hasVoted: boolean
-  receiptId?: string
 }
 
-export interface VerifiedVoter {
-  token: string
-  session: VoterSessionInfo
+export interface CandidatesAddOut extends CandidatesOut {
+  added: number
+  skipped: number
 }
 
+export interface EligibleVotersOut {
+  election_id: string
+  eligible_test_voters: Array<{ user_id: string }>
+  added?: number
+  skipped?: number
+}
+
+// ---------- Ballots & receipts ----------
+
+/** 202 response from POST /elections/{id}/ballots — accepted, NOT yet on chain. */
+export interface BallotAccepted {
+  election_id: string
+  receipt_id: string
+  status: PublicationStatus
+  candidate_id: string
+  submitted_at: string
+  idempotent_retry: boolean
+}
+
+/** GET /elections/{id}/receipts/{receipt_id} — submitting voter only. */
 export interface BallotReceipt {
-  receiptId: string
-  electionId: string
-  candidateId?: string
+  election_id: string
+  receipt_id: string
+  status: PublicationStatus
+  ballot_accepted: boolean
+  candidate_id: string
   commitment: string
-  status: 'pending' | 'confirmed' | 'failed'
-  txHash?: string
-  blockNumber?: number
-  createdAt: string
-  confirmedAt?: string
+  /** 0x-prefixed hex; lets the voter recompute the commitment later. */
+  nonce: string
+  transaction_hash?: string | null
+  block_number?: number | null
+  submitted_at?: string | null
+  confirmed_at?: string | null
+  error?: string | null
 }
 
-export interface CandidateTally {
-  candidateId: string
-  candidateName: string
-  count: number
-  percentage: number
+// ---------- Publications (organizer chain-job monitor) ----------
+
+export type PublicationJobType =
+  | 'register_election'
+  | 'open_election'
+  | 'publish_ballot'
+  | 'close_election'
+  | 'publish_result'
+
+export interface PublicationJob {
+  job_id: string
+  job_type: PublicationJobType | string
+  receipt_id?: string | null
+  status: PublicationStatus
+  attempts: number
+  max_attempts: number
+  transaction_hash?: string | null
+  block_number?: number | null
+  next_attempt_at?: string | null
+  last_error?: string | null
+  created_at: string
+  confirmed_at?: string | null
+}
+
+export interface PublicationsOut {
+  election_id: string
+  publications: PublicationJob[]
+  summary: Record<string, number>
+}
+
+export interface RetryOut {
+  election_id: string
+  requeued: number
+  processed: Record<string, number>
+}
+
+// ---------- Results ----------
+
+export interface ResultCount {
+  candidate_id: string
+  name: string
+  chain_index: number
+  votes: number
 }
 
 export interface ElectionResults {
-  electionId: string
-  title: string
+  election_id: string
   status: ElectionStatus
-  totalBallots: number
-  tally: CandidateTally[]
-  blockchainReference: {
-    resultTxHash?: string
-    blockNumber?: number
-    resultCommitment?: string
-    commitmentStatus: ResultCommitmentStatus
-  }
-  note?: string
+  tally_type: string
+  total_ballots: number
+  counts: ResultCount[]
+  publications: Record<string, number>
+  published_result_status: PublishedResultStatus
+  /** Must be shown as-is in the UI (per the API contract). */
+  disclaimer: string
 }
 
-export interface ReceiptLookupResult {
-  found: boolean
-  receiptId?: string
-  commitment?: string
-  status?: 'pending' | 'confirmed' | 'failed'
-  blockNumber?: number
-  txHash?: string
-  message: string
-  recordedOnBlockchain: boolean
-  commitmentMatched: boolean
-  timestamp?: string
-}
+// ---------- Errors ----------
 
+/** Flattened from the backend envelope { error: { code, message } }. */
 export interface ApiError {
   error: string
   message: string
-  details?: Record<string, unknown>
 }

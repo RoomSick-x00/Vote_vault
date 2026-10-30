@@ -8,10 +8,10 @@ import { ErrorMessage } from '../components/ui/ErrorMessage'
 import type { ApiError } from '../types'
 
 export default function Signup() {
-  const { user, register } = useAuth()
+  const { user, signup } = useAuth()
   const navigate = useNavigate()
 
-  const [name, setName] = useState('')
+  const [fullName, setFullName] = useState('')
   const [organization, setOrganization] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -34,11 +34,11 @@ export default function Signup() {
     }
     setLoading(true)
     try {
-      await register({
-        name: name.trim(),
+      await signup({
+        full_name: fullName.trim(),
+        organization_name: organization.trim(),
         email: email.trim(),
         password,
-        organization: organization.trim() || undefined,
       })
       navigate('/organizer', { replace: true })
     } catch (err) {
@@ -64,13 +64,15 @@ export default function Signup() {
         {error && <ErrorMessage error={error} className="mt-6" />}
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-          <Field label="Full name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} required />
+          <Field label="Full name" autoComplete="name" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
           <Field
             label="Institution / organisation"
             autoComplete="organization"
             value={organization}
             onChange={(e) => setOrganization(e.target.value)}
             placeholder="e.g. College Student Council"
+            hint="An organisation is created with you as its owner."
+            required
           />
           <Field
             label="Email"

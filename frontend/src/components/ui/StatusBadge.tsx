@@ -1,7 +1,7 @@
-import type { ElectionStatus, PublicationStatus, ResultCommitmentStatus } from '../../types'
+import type { ElectionStatus, PublicationStatus, PublishedResultStatus } from '../../types'
 
 interface StatusBadgeProps {
-  status?: ElectionStatus | PublicationStatus | ResultCommitmentStatus | 'valid' | 'tampered'
+  status?: ElectionStatus | PublicationStatus | PublishedResultStatus | string
   type?: 'election' | 'publication' | 'commitment'
   className?: string
 }
@@ -19,6 +19,15 @@ export function StatusBadge({ status, type = 'election', className = '' }: Statu
           >
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
             VOTING OPEN
+          </span>
+        )
+      case 'closing':
+        return (
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-950/40 px-2.5 py-0.5 font-mono text-[11px] font-medium text-sky-300 ${className}`}
+          >
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-sky-400" />
+            CLOSING
           </span>
         )
       case 'closed':
@@ -43,7 +52,7 @@ export function StatusBadge({ status, type = 'election', className = '' }: Statu
     }
   }
 
-  // Publication Status: pending, confirmed, failed
+  // Publication Status: pending, confirmed, failed (plus result-commitment variants)
   if (type === 'publication' || type === 'commitment') {
     switch (status) {
       case 'confirmed':
@@ -71,6 +80,14 @@ export function StatusBadge({ status, type = 'election', className = '' }: Statu
           >
             <span className="h-1.5 w-1.5 rounded-full bg-red-400" />
             PUBLICATION FAILED
+          </span>
+        )
+      case 'not_published':
+        return (
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 font-mono text-[11px] font-medium text-ash ${className}`}
+          >
+            NOT PUBLISHED
           </span>
         )
       default:

@@ -1,80 +1,63 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, Check, Lock } from 'lucide-react'
-import { api, getVoterToken } from '../services/api'
-import type { ApiError, IdentifyResponse, OtpChannel, PublicElection, VoterSessionInfo } from '../types'
+import { ArrowLeft, Check, Lock, Receipt } from 'lucide-react'
+import { api, getRememberedReceipt, getVoterToken } from '../services/api'
+import type { ApiError, Election } from '../types'
 import { Button } from '../components/ui/Button'
 import { ErrorMessage } from '../components/ui/ErrorMessage'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
-import { extractElectionCode } from '../lib/code'
-import IdentifyStep from '../components/voter/IdentifyStep'
-import ContactStep from '../components/voter/ContactStep'
-import OtpStep from '../components/voter/OtpStep'
+import { isElectionId } from '../lib/code'
+import VoterSignIn from '../components/voter/VoterSignIn'
 import BallotStep from '../components/voter/BallotStep'
 
-type Step = 'identify' | 'contact' | 'otp' | 'ballot'
-const STEPS: Array<{ key: Step; label: string }> = [
-  { key: 'identify', label: 'Identify' },
-  { key: 'contact', label: 'Contact' },
-  { key: 'otp', label: 'OTP' },
-  { key: 'ballot', label: 'Vote' },
-]
-
+/**
+ * Voter flow for this milestone: open the election link → sign in with the
+ * Supabase account the organizer whitelisted → cast one ballot → receipt.
+ * The old code+OTP flow has no backend endpoints yet and was removed.
+ */
 export default function VoterSession() {
-  const params = useParams<{ code: string }>()
-  const code = extractElectionCode(params.code || '')
+  const params = useParams<{ electionId: string }>()
+  const electionId = params.electionId || ''
 
-  const [election, setElection] = useState<PublicElection | null>(null)
+  const [election, setElection] = useState<Election | null>(null)
   const [loading, setLoading] = useState(true)
+  const [needsSignIn, setNeedsSignIn] = useState(false)
   const [error, setError] = useState<ApiError | null>(null)
+  const [session, setSession] = useState(0) // bump to reload election after sign-in
 
-  const [step, setStep] = useState<Step>('identify')
-  const [identity, setIdentity] = useState<IdentifyResponse | null>(null)
-  const [otp, setOtp] = useState<{ channel: OtpChannel; contact: string; resendAfter: number } | null>(null)
-  const [session, setSession] = useState<VoterSessionInfo | null>(null)
+  const rememberedReceipt = getRememberedReceipt(electionId)
+  const signedIn = !!getVoterToken()
 
-  useEffect(() => {
-    let active = true
+  const loadElection = useCallback(async () => {
+    if (!isElectionId(electionId)) {
+      setError({ error: 'NOT_FOUND', message: 'That election link is not valid.' })
+      setLoading(false)
+      return
+    }
+    if (!getVoterToken()) {
+      setNeedsSignIn(true)
+      setLoading(false)
+      return
+    }
     setLoading(true)
     setError(null)
-    setStep('identify')
-    setIdentity(null)
-    setOtp(null)
-    setSession(null)
-
-    ;(async () => {
-      try {
-        const e = await api.getPublicElection(code)
-        if (!active) return
-        setElection(e)
-
-        // Resume an already verified session for this election (e.g. page refresh).
-        if (e.status === 'open' && getVoterToken()) {
-          try {
-            const s = await api.getVoterSession()
-            if (active && s.election.code === e.code) {
-              setSession(s)
-              setStep('ballot')
-            } else {
-              api.endVoterSession()
-            }
-          } catch {
-            api.endVoterSession()
-          }
-        }
-      } catch (err) {
-        if (active) setError(err as ApiError)
-      } finally {
-        if (active) setLoading(false)
+    try {
+      setElection(await api.getElection(electionId, 'voter'))
+    } catch (err) {
+      const apiErr = err as ApiError
+      if (apiErr.error === 'UNAUTHENTICATED' || apiErr.error === 'FORBIDDEN') {
+        // 403 on a draft, or a token whose account cannot see this election yet.
+        setNeedsSignIn(apiErr.error === 'UNAUTHENTICATED')
       }
-    })()
-
-    return () => {
-      active = false
+      setError(apiErr)
+    } finally {
+      setLoading(false)
     }
-  }, [code])
+  }, [electionId])
 
-  const stepIndex = STEPS.findIndex((s) => s.key === step)
+  useEffect(() => {
+    loadElection()
+  }, [loadElection, session, signedIn])
 
   const shell = (children: React.ReactNode) => (
     <div className="mx-auto flex min-h-[calc(100vh-140px)] max-w-md flex-col justify-center px-4 py-10">
@@ -91,36 +74,56 @@ export default function VoterSession() {
     </div>
   )
 
-  if (loading) return <LoadingSpinner label="Finding election..." />
+  if (loading && !election) return <LoadingSpinner label="Finding election..." />
+
+  if (needsSignIn || !signedIn) {
+    return shell(
+      <div className="space-y-5">
+        <div>
+          <p className="font-mono text-[10px] tracking-wider text-electric">ELECTION</p>
+          <h1 className="mt-1 font-display text-xl font-bold text-paper">
+            {election?.title ?? 'Sign in required'}
+          </h1>
+          <p className="mt-1 text-xs text-ash">Sign in with your account to view this election and vote.</p>
+        </div>
+        <VoterSignIn
+          onSignedIn={() => {
+            setNeedsSignIn(false)
+            setSession((n) => n + 1)
+          }}
+        />
+      </div>
+    )
+  }
 
   if (!election) {
+    const notOpenYet = error?.error === 'FORBIDDEN'
     return shell(
       <div className="space-y-4 text-center">
-        <ErrorMessage
-          error={
-            error?.error === 'NETWORK_FAILURE'
-              ? error
-              : { error: 'NOT_FOUND', message: error?.message || 'No election found for that code.' }
-          }
-        />
+        <ErrorMessage error={notOpenYet ? { error: 'NOT_OPEN', message: 'Voting has not opened for this election yet.' } : error || 'Election not found.'} />
         <Link to="/voter">
-          <Button variant="secondary">Try another code</Button>
+          <Button variant="secondary">Try another election</Button>
         </Link>
       </div>
     )
   }
 
-  if (election.status !== 'open') {
+  if (election.status === 'draft' || election.status === 'closed' || election.status === 'closing') {
+    const isClosing = election.status === 'closing'
     return shell(
       <div className="space-y-4 text-center">
         <Lock className="mx-auto h-9 w-9 text-ash" />
         <h1 className="font-display text-xl font-bold text-paper">{election.title}</h1>
         {election.status === 'draft' ? (
           <p className="text-sm text-ash">Voting has not opened yet. Please check back later.</p>
+        ) : isClosing ? (
+          <p className="text-sm text-ash">
+            Voting has ended — ballots are being published to the chain and results are being finalized.
+          </p>
         ) : (
           <>
             <p className="text-sm text-ash">Voting has ended for this election.</p>
-            <Link to={`/results/${election.id}`}>
+            <Link to={`/results/${election.election_id}`}>
               <Button>View results</Button>
             </Link>
           </>
@@ -129,69 +132,34 @@ export default function VoterSession() {
     )
   }
 
+  // Open: either show the remembered receipt, or the ballot.
   return shell(
     <>
       <div className="mb-6">
-        <p className="font-mono text-[10px] tracking-wider text-electric">ELECTION · {election.code}</p>
+        <p className="font-mono text-[10px] tracking-wider text-electric">ELECTION · OPEN</p>
         <h1 className="mt-1 font-display text-2xl font-bold text-paper">{election.title}</h1>
-        {election.description && <p className="mt-1 text-xs text-ash">{election.description}</p>}
+        {election.closes_at && (
+          <p className="mt-1 text-xs text-ash">Ballots accepted until {new Date(election.closes_at).toLocaleString()}</p>
+        )}
       </div>
 
-      <ol className="mb-6 flex items-center gap-2" aria-label="Progress">
-        {STEPS.map((s, i) => (
-          <li key={s.key} className="flex flex-1 flex-col items-center gap-1.5">
-            <span
-              className={`flex h-7 w-7 items-center justify-center rounded-full font-mono text-xs font-bold ${
-                i < stepIndex
-                  ? 'bg-emerald-500 text-obsidian'
-                  : i === stepIndex
-                  ? 'bg-electric text-obsidian'
-                  : 'bg-white/10 text-ash'
-              }`}
-            >
-              {i < stepIndex ? <Check className="h-3.5 w-3.5" /> : i + 1}
-            </span>
-            <span className={`font-mono text-[10px] ${i === stepIndex ? 'text-paper' : 'text-ash'}`}>{s.label}</span>
-          </li>
-        ))}
-      </ol>
-
-      {step === 'identify' && (
-        <IdentifyStep
-          election={election}
-          onDone={(res) => {
-            setIdentity(res)
-            setStep('contact')
-          }}
+      {rememberedReceipt ? (
+        <div className="space-y-4 text-center">
+          <Check className="mx-auto h-10 w-10 text-emerald-400" />
+          <h2 className="font-display text-xl font-bold text-paper">You have already voted</h2>
+          <p className="text-sm text-ash">Only one ballot per voter is allowed.</p>
+          <Button onClick={() => window.location.assign(`/receipt/${electionId}/${rememberedReceipt}`)}>
+            <Receipt className="h-4 w-4" />
+            View my receipt
+          </Button>
+        </div>
+      ) : (
+        <BallotStep
+          electionId={electionId}
+          candidates={election.candidates}
+          onAlreadyVoted={(receiptId) => window.location.assign(`/receipt/${electionId}/${receiptId}`)}
         />
       )}
-
-      {step === 'contact' && identity && (
-        <ContactStep
-          identifyToken={identity.identifyToken}
-          channels={identity.channels}
-          onDone={(info) => {
-            setOtp({ channel: info.channel, contact: info.contact, resendAfter: info.resendAfter })
-            setStep('otp')
-          }}
-        />
-      )}
-
-      {step === 'otp' && identity && otp && (
-        <OtpStep
-          identifyToken={identity.identifyToken}
-          channel={otp.channel}
-          contact={otp.contact}
-          resendAfter={otp.resendAfter}
-          onChangeContact={() => setStep('contact')}
-          onVerified={(v) => {
-            setSession(v.session)
-            setStep('ballot')
-          }}
-        />
-      )}
-
-      {step === 'ballot' && session && <BallotStep session={session} />}
     </>
   )
 }
