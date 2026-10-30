@@ -21,9 +21,10 @@ class APIModel(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
 
-def normalize_to_naive_utc(value: datetime) -> datetime:
-    """Stored timestamps are naive UTC; accept aware ISO input by converting."""
-    if value.tzinfo is not None:
+def normalize_to_naive_utc(value: datetime | None) -> datetime | None:
+    """Stored timestamps are naive UTC; accept aware ISO input by converting.
+    None passes through (opens_at/closes_at are optional)."""
+    if value is not None and value.tzinfo is not None:
         value = value.astimezone(timezone.utc).replace(tzinfo=None)
     return value
 

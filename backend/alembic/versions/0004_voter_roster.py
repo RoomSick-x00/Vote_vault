@@ -42,7 +42,8 @@ def upgrade() -> None:
     )
     op.add_column("candidates", sa.Column("description", sa.String(length=500), nullable=False, server_default=""))
 
-    # Backfill unique codes for existing rows, then enforce.
+    # Backfill unique codes for existing rows, then enforce. Batch mode so
+    # SQLite dev databases can ALTER constraints (no-op wrapper on Postgres).
     bind = op.get_bind()
     elections = bind.execute(sa.text("SELECT id FROM elections")).fetchall()
     used: set[str] = set()
@@ -52,8 +53,9 @@ def upgrade() -> None:
             code = _new_code()
         used.add(code)
         bind.execute(sa.text("UPDATE elections SET code = :c WHERE id = :i"), {"c": code, "i": election_id})
-    op.alter_column("elections", "code", existing_type=sa.String(length=12), nullable=False)
-    op.create_unique_constraint("uq_elections_code", "elections", ["code"])
+    with op.batch_alter_table("elections") as batch:
+        batch.alter_column("code", existing_type=sa.String(length=12), nullable=False)
+        batch.create_unique_constraint("uq_elections_code", ["code"])
 
     op.create_table(
         "voters",
@@ -105,9 +107,10 @@ def upgrade() -> None:
     # only. Re-point is not possible, so ballots are cleared when adopting the
     # roster model.
     bind.execute(sa.text("DELETE FROM ballots"))
-    op.create_foreign_key(
-        "fk_ballots_voter_id_voters", "ballots", "voters", ["voter_id"], ["id"], ondelete="CASCADE"
-    )
+    with op.batch_alter_table("ballots") as batch:
+        batch.create_foreign_key(
+            "fk_ballots_voter_id_voters", "voters", ["voter_id"], ["id"], ondelete="CASCADE"
+        )
 
     op.drop_index(op.f("ix_eligible_voters_election_id"), table_name="eligible_voters")
     op.drop_table("eligible_voters")
@@ -129,10 +132,12 @@ def downgrade() -> None:
         sa.UniqueConstraint("election_id", "user_id", name=op.f("uq_eligible_voters_election_user")),
     )
     op.create_index(op.f("ix_eligible_voters_election_id"), "eligible_voters", ["election_id"], unique=False)
-    op.drop_constraint("fk_ballots_voter_id_voters", "ballots", type_="foreignkey")
+    with op.batch_alter_table("ballots") as batch:
+        batch.drop_constraint("fk_ballots_voter_id_voters", type_="foreignkey")
     op.drop_table("voter_otp_challenges")
     op.drop_table("voters")
-    op.drop_constraint("uq_elections_code", "elections", type_="unique")
+    with op.batch_alter_table("elections") as batch:
+        batch.drop_constraint("uq_elections_code", type_="unique")
     op.drop_column("elections", "voter_schema")
     op.drop_column("elections", "description")
     op.drop_column("elections", "code")

@@ -18,10 +18,12 @@ const MAX_CANDIDATES = 20
  */
 export default function CreateElection() {
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, createOrganization } = useAuth()
   const organizations = user?.organizations ?? []
 
   const [organizationId, setOrganizationId] = useState(organizations[0]?.organization_id ?? '')
+  const [newOrgName, setNewOrgName] = useState('')
+  const [creatingOrg, setCreatingOrg] = useState(false)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [identityColumns, setIdentityColumns] = useState<Array<'name' | 'rollNo'>>(['rollNo'])
@@ -34,6 +36,21 @@ export default function CreateElection() {
 
   const updateCandidate = (i: number, value: string) =>
     setCandidates((prev) => prev.map((c, idx) => (idx === i ? { name: value } : c)))
+
+  const handleCreateOrg = async () => {
+    if (!newOrgName.trim()) return
+    setCreatingOrg(true)
+    setError(null)
+    try {
+      const org = await createOrganization(newOrgName.trim())
+      setOrganizationId(org.organization_id)
+      setNewOrgName('')
+    } catch (err) {
+      setError(err as ApiError)
+    } finally {
+      setCreatingOrg(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -108,12 +125,44 @@ export default function CreateElection() {
         <section className="space-y-4 rounded-3xl border border-white/10 bg-charcoal/50 p-6">
           <h2 className="font-display text-lg font-bold text-paper">1. Election details</h2>
 
-          {organizations.length <= 1 ? (
-            organizations.length === 1 && (
-              <p className="rounded-2xl border border-white/10 bg-obsidian/60 p-3 font-mono text-xs text-ash">
-                Organisation: <span className="text-paper">{organizations[0].name}</span>
+          {organizations.length === 0 ? (
+            <div className="rounded-2xl border border-amber-500/30 bg-amber-950/20 p-4">
+              <p className="font-mono text-[11px] font-semibold tracking-wide text-amber-200">
+                NO ORGANISATION YET — NAME YOURS TO CONTINUE
               </p>
-            )
+              <div className="mt-3 flex gap-2">
+                <input
+                  value={newOrgName}
+                  onChange={(e) => setNewOrgName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      handleCreateOrg()
+                    }
+                  }}
+                  placeholder="e.g. College Student Council"
+                  className="w-full rounded-xl border border-white/15 bg-obsidian px-4 py-2.5 text-sm text-paper focus:border-saffron focus:outline-none"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleCreateOrg}
+                  isLoading={creatingOrg}
+                  loadingText="Creating..."
+                  disabled={!newOrgName.trim()}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Create
+                </Button>
+              </div>
+              <p className="mt-2 font-mono text-[10px] text-ash/70">
+                You become the owner. Existing accounts created before a database reset can re-create it here.
+              </p>
+            </div>
+          ) : organizations.length === 1 ? (
+            <p className="rounded-2xl border border-white/10 bg-obsidian/60 p-3 font-mono text-xs text-ash">
+              Organisation: <span className="text-paper">{organizations[0].name}</span>
+            </p>
           ) : (
             <div>
               <label

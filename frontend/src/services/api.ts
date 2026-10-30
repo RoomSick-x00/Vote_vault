@@ -233,6 +233,13 @@ export const api = {
 
   getOrganizations: () => request<OrganizationListOut>('/organizations'),
 
+  /** Found an organization; the caller becomes its owner. */
+  createOrganization: (name: string) =>
+    request<{ organization_id: string; name: string; role: string; created_at: string }>('/organizations', {
+      method: 'POST',
+      body: { name },
+    }),
+
   // ---------- Elections ----------
 
   getElection: (id: string) => request<Election>(`/elections/${id}`),

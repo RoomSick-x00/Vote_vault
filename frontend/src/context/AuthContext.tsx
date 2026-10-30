@@ -14,6 +14,8 @@ interface AuthContextValue {
   }) => Promise<Organizer>
   login: (email: string, password: string) => Promise<Organizer>
   logout: () => void
+  /** Found an organization for the signed-in user; updates the session's org list. */
+  createOrganization: (name: string) => Promise<{ organization_id: string; name: string; role: string }>
   clearSessionExpired: () => void
 }
 
@@ -69,11 +71,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
   }, [])
 
+  const createOrganization = useCallback<AuthContextValue['createOrganization']>(async (name) => {
+    const org = await api.createOrganization(name)
+    setUser(
+      (prev) =>
+        prev
+          ? {
+              ...prev,
+              organizations: [
+                ...prev.organizations,
+                { organization_id: org.organization_id, name: org.name, role: org.role },
+              ],
+            }
+          : prev
+    )
+    return org
+  }, [])
+
   const clearSessionExpired = useCallback(() => setSessionExpired(false), [])
 
   const value = useMemo(
-    () => ({ user, loading, sessionExpired, signup, login, logout, clearSessionExpired }),
-    [user, loading, sessionExpired, signup, login, logout, clearSessionExpired]
+    () => ({ user, loading, sessionExpired, signup, login, logout, createOrganization, clearSessionExpired }),
+    [user, loading, sessionExpired, signup, login, logout, createOrganization, clearSessionExpired]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
