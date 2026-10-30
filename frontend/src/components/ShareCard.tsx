@@ -3,23 +3,18 @@ import { QRCodeSVG } from 'qrcode.react'
 import { Check, Copy, Download } from 'lucide-react'
 
 interface ShareCardProps {
-  electionId: string
+  electionCode: string
   title: string
 }
 
-/**
- * Voter-facing election link + QR. There are no join codes in this milestone —
- * voters follow the link (or scan), sign in with their account, and vote if
- * they are on the eligible roster.
- */
-export default function ShareCard({ electionId, title }: ShareCardProps) {
+export default function ShareCard({ electionCode, title }: ShareCardProps) {
   const [copied, setCopied] = useState<'id' | 'link' | null>(null)
   const qrRef = useRef<HTMLDivElement>(null)
-  const link = `${window.location.origin}/vote/${electionId}`
+  const link = `${window.location.origin}/vote/${electionCode}`
 
   const copy = async (kind: 'id' | 'link') => {
     try {
-      await navigator.clipboard.writeText(kind === 'id' ? electionId : link)
+      await navigator.clipboard.writeText(kind === 'id' ? electionCode : link)
       setCopied(kind)
       setTimeout(() => setCopied(null), 1800)
     } catch {
@@ -44,7 +39,7 @@ export default function ShareCard({ electionId, title }: ShareCardProps) {
       ctx.drawImage(img, 0, 0, size, size)
       const a = document.createElement('a')
       a.href = canvas.toDataURL('image/png')
-      a.download = `votevault-${electionId.slice(0, 8)}.png`
+      a.download = `votevault-${electionCode.toLowerCase()}.png`
       a.click()
     }
     img.src = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(xml)))}`
@@ -62,7 +57,7 @@ export default function ShareCard({ electionId, title }: ShareCardProps) {
           <p className="mt-1 break-all font-mono text-sm font-bold text-saffron">{link}</p>
         </div>
         <p className="font-mono text-[11px] text-ash">
-          Share with eligible voters — they sign in with their VoteVault account to vote.
+          Share the code with registered voters. They verify their roster contact with a one-time code to vote.
         </p>
         <div className="flex flex-wrap justify-center gap-2 sm:justify-start">
           <button
@@ -71,7 +66,7 @@ export default function ShareCard({ electionId, title }: ShareCardProps) {
             className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 font-mono text-xs text-paper transition hover:border-saffron/60"
           >
             {copied === 'id' ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
-            Copy election ID
+            Copy election code
           </button>
           <button
             type="button"

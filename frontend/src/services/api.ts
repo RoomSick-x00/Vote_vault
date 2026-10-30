@@ -2,18 +2,22 @@ import type {
   ApiError,
   AuthMe,
   AuthSession,
-  BallotAccepted,
-  BallotReceipt,
   CandidatesAddOut,
   CreateElectionPayload,
   Election,
   ElectionResults,
-  EligibleVotersOut,
+  IdentifyResponse,
   OpenElectionOut,
   CloseElectionOut,
+  OtpRequestResponse,
   OrganizationListOut,
+  PublicElection,
   PublicationsOut,
   RetryOut,
+  VoterImportReport,
+  VoterListOut,
+  VoterReceipt,
+  VoterSession,
 } from '../types'
 
 /**
@@ -45,8 +49,7 @@ function writeStorage(store: Storage, key: string, value: string | null): void {
   }
 }
 
-// Organizer sessions persist across tabs; voter sessions live only for the browser tab.
-// Both tokens are Supabase JWTs — the backend derives identity from them, never from bodies.
+// Organizer sessions persist across tabs; short-lived voter sessions stay per tab.
 export const getOrganizerToken = () => readStorage(localStorage, ORGANIZER_TOKEN_KEY)
 export const setOrganizerToken = (t: string | null) => writeStorage(localStorage, ORGANIZER_TOKEN_KEY, t)
 export const getVoterToken = () => readStorage(sessionStorage, VOTER_TOKEN_KEY)
@@ -100,7 +103,8 @@ function buildUrl(endpoint: string, query?: Record<string, string | undefined | 
 async function request<T>(endpoint: string, opts: RequestOptions = {}): Promise<T> {
   const { method = 'GET', body, auth = 'organizer', query } = opts
   const headers: Record<string, string> = { Accept: 'application/json' }
-  if (body !== undefined) headers['Content-Type'] = 'application/json'
+  const isForm = typeof FormData !== 'undefined' && body instanceof FormData
+  if (body !== undefined && !isForm) headers['Content-Type'] = 'application/json'
 
   const token = auth === 'organizer' ? getOrganizerToken() : auth === 'voter' ? getVoterToken() : null
   if (token) headers.Authorization = `Bearer ${token}`
@@ -110,7 +114,7 @@ async function request<T>(endpoint: string, opts: RequestOptions = {}): Promise<
     response = await fetch(buildUrl(endpoint, query), {
       method,
       headers,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
     })
   } catch {
     throw {
@@ -185,7 +189,7 @@ export function getRememberedReceipt(electionId: string): string | null {
 }
 
 export const api = {
-  // ---------- Auth (organizer; voters reuse login in the voter flow) ----------
+  // ---------- Organizer auth ----------
 
   async signup(payload: {
     email: string
@@ -205,17 +209,6 @@ export const api = {
       auth: 'none',
     })
     setOrganizerToken(session.access_token)
-    return session
-  },
-
-  /** Voter sign-in: same Supabase account system, token kept per-tab. */
-  async voterLogin(email: string, password: string): Promise<AuthSession> {
-    const session = await request<AuthSession>('/auth/login', {
-      method: 'POST',
-      body: { email, password },
-      auth: 'none',
-    })
-    setVoterToken(session.access_token)
     return session
   },
 
@@ -242,12 +235,7 @@ export const api = {
 
   // ---------- Elections ----------
 
-  /**
-   * Open/closed elections are visible to any authenticated user, so voters fetch
-   * them with their own token (drafts stay organizer-only → 403).
-   */
-  getElection: (id: string, as: 'organizer' | 'voter' = 'organizer') =>
-    request<Election>(`/elections/${id}`, { auth: as }),
+  getElection: (id: string) => request<Election>(`/elections/${id}`),
 
   /** Interim dashboard list: hydrate the local ID index in parallel, pruning dead IDs. */
   async getElectionsFromIndex(): Promise<Election[]> {
@@ -283,28 +271,62 @@ export const api = {
       body: { candidates: names },
     }),
 
-  // ---------- Eligible test voters (Supabase user UUIDs) ----------
+  // ---------- Organizer voter roster ----------
 
-  getEligibleVoters: (electionId: string) =>
-    request<EligibleVotersOut>(`/elections/${electionId}/eligible-test-voters`),
+  getVoters: (electionId: string) =>
+    request<VoterListOut>(`/elections/${electionId}/voters`),
 
-  addEligibleVoters: (electionId: string, userIds: string[]) =>
-    request<EligibleVotersOut>(`/elections/${electionId}/eligible-test-voters`, {
+  uploadVoters: (electionId: string, file: File) => {
+    const body = new FormData()
+    body.append('file', file)
+    return request<VoterImportReport>(`/elections/${electionId}/voters/upload`, {
       method: 'POST',
-      body: { user_ids: userIds },
+      body,
+    })
+  },
+
+  deleteVoter: (electionId: string, voterId: string) =>
+    request<void>(`/elections/${electionId}/voters/${voterId}`, { method: 'DELETE' }),
+
+  // ---------- Public voter code -> identify -> OTP -> session ----------
+
+  getPublicElection: (code: string) =>
+    request<PublicElection>(`/vote/${encodeURIComponent(code)}`, { auth: 'none' }),
+
+  identifyVoter: (code: string, identity: { name?: string; rollNo?: string }) =>
+    request<IdentifyResponse>(`/vote/${encodeURIComponent(code)}/identify`, {
+      method: 'POST',
+      body: identity,
+      auth: 'none',
     }),
 
-  // ---------- Ballots & receipts (voter) ----------
-
-  submitBallot: (electionId: string, candidateId: string) =>
-    request<BallotAccepted>(`/elections/${electionId}/ballots`, {
+  requestVoterOtp: (identifyToken: string, channel: 'email' | 'phone', contact: string) =>
+    request<OtpRequestResponse>('/vote/otp/request', {
       method: 'POST',
-      body: { candidate_id: candidateId },
+      body: { identifyToken, channel, contact },
+      auth: 'none',
+    }),
+
+  async verifyVoterOtp(identifyToken: string, otp: string) {
+    const verified = await request<{ token: string; session: VoterSession }>('/vote/otp/verify', {
+      method: 'POST',
+      body: { identifyToken, otp },
+      auth: 'none',
+    })
+    setVoterToken(verified.token)
+    return verified.session
+  },
+
+  getVoterSession: () => request<VoterSession>('/vote/session', { auth: 'voter' }),
+
+  submitVoterBallot: (candidateId: string) =>
+    request<VoterReceipt>('/vote/ballot', {
+      method: 'POST',
+      body: { candidateId },
       auth: 'voter',
     }),
 
-  getReceipt: (electionId: string, receiptId: string) =>
-    request<BallotReceipt>(`/elections/${electionId}/receipts/${receiptId}`, { auth: 'voter' }),
+  getVoterReceipt: () => request<VoterReceipt>('/vote/receipt', { auth: 'voter' }),
 
   // ---------- Publications (organizer chain monitor) ----------
 

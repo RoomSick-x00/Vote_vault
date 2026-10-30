@@ -18,7 +18,7 @@ Run from backend/:  .venv/bin/python scripts/integrated_checkpoint.py
 from __future__ import annotations
 
 import os
-import signal
+import socket
 import subprocess
 import sys
 import time
@@ -40,7 +40,9 @@ LABEL = "backend demo tally; independent private tally verification pending."
 PORT = int(os.environ.get("CHECKPOINT_PORT", "8010"))
 BASE = f"http://127.0.0.1:{PORT}"
 POLL_TIMEOUT = 60
-REPORT_PATH = Path(os.environ.get("CHECKPOINT_REPORT", str(ROOT / "docs/checkpoint2-live-evidence.json")))
+REPORT_PATH = Path(os.environ.get("CHECKPOINT_REPORT", "docs/checkpoint2-live-evidence.json"))
+if not REPORT_PATH.is_absolute():
+    REPORT_PATH = ROOT / REPORT_PATH
 REPORT: dict = {"scope": "live HTTP API + PostgreSQL + Hardhat; synthetic dev JWT users; backend demo tally only",
                 "stages": [], "result": "incomplete"}
 SECRET_VALUES: list[str] = []
@@ -132,14 +134,20 @@ def main() -> int:
     }
 
     # --- start the real backend -------------------------------------------
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        try:
+            probe.bind(("127.0.0.1", PORT))
+        except OSError as exc:
+            raise SystemExit(f"checkpoint port {PORT} is already in use") from exc
+
     step("starting uvicorn (real backend, background publisher on)")
     server = subprocess.Popen(
-        [str(BACKEND_DIR / ".venv" / "bin" / "uvicorn"), "app.main:app", "--port", str(PORT)],
+        [sys.executable, "-m", "uvicorn", "app.main:app", "--port", str(PORT)],
         cwd=str(BACKEND_DIR), env=env,
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
     )
     try:
-        wait_for(lambda: _healthy(), "backend to come up", 30)
+        wait_for(lambda: server.poll() is None and _healthy(), "backend to come up", 30)
         boot = httpx.get(f"{BASE}/").json()
         print(f"    root: {boot}")
         assert boot["publisher"] == "web3", "publisher must be web3 (deployment-file mode)"
@@ -207,31 +215,36 @@ def main() -> int:
 
         step("voter 1 votes; duplicate + conflicting + outsider attempts behave")
         choice_a, choice_c = candidates[0]["candidate_id"], candidates[2]["candidate_id"]
-        first = httpx.post(f"{BASE}/api/v1/elections/{election_id}/ballots",
-                           json={"candidate_id": choice_a}, headers=v1_hdr)
+        first = httpx.post(f"{BASE}/api/v1/vote/ballot",
+                           json={"candidateId": choice_a}, headers=v1_hdr)
         assert first.status_code == 202, first.text
-        receipt_id = first.json()["receipt_id"]
-        retry = httpx.post(f"{BASE}/api/v1/elections/{election_id}/ballots",
-                           json={"candidate_id": choice_a}, headers=v1_hdr)
-        assert retry.status_code == 202 and retry.json()["receipt_id"] == receipt_id
-        conflict = httpx.post(f"{BASE}/api/v1/elections/{election_id}/ballots",
-                              json={"candidate_id": choice_c}, headers=v1_hdr)
+        first_ballot = first.json()
+        receipt_id = first_ballot["receiptId"]
+        retry = httpx.post(f"{BASE}/api/v1/vote/ballot",
+                           json={"candidateId": choice_a}, headers=v1_hdr)
+        assert retry.status_code == 202 and retry.json()["receiptId"] == receipt_id
+        conflict = httpx.post(f"{BASE}/api/v1/vote/ballot",
+                              json={"candidateId": choice_c}, headers=v1_hdr)
         assert conflict.status_code == 409 and conflict.json()["error"]["code"] == "DUPLICATE_VOTE"
         outsider_session = {"Authorization": f"Bearer {mint_token(jwt_secret, outsider, 'o@checkpoint.edu')}"}
-        outsider_try = httpx.post(f"{BASE}/api/v1/elections/{election_id}/ballots",
-                                  json={"candidate_id": choice_c}, headers=outsider_session)
+        outsider_try = httpx.post(f"{BASE}/api/v1/vote/ballot",
+                                  json={"candidateId": choice_c}, headers=outsider_session)
         assert outsider_try.status_code == 401 and outsider_try.json()["error"]["code"] == "UNAUTHENTICATED"
         print(f"    202 accepted (receipt {receipt_id[:8]}...), retry idempotent, 409 + 401 enforced")
 
         step("worker publishes the ballot commitment; receipt confirms with tx + block")
         _wait_all_confirmed(election_id, {"publish_ballot"}, org_hdr)
-        receipt = httpx.get(f"{BASE}/api/v1/elections/{election_id}/receipts/{receipt_id}", headers=v1_hdr).json()
-        assert receipt["status"] == "confirmed" and receipt["transaction_hash"], receipt
-        print(f"    receipt confirmed: tx={receipt['transaction_hash'][:22]}... block={receipt['block_number']}")
+        receipt = httpx.get(f"{BASE}/api/v1/vote/receipt", headers=v1_hdr).json()
+        assert receipt["receiptId"] == receipt_id
+        assert receipt["commitment"] == first_ballot["commitment"]
+        assert receipt["status"] == "confirmed" and receipt["txHash"], receipt
+        print(f"    receipt confirmed: tx={receipt['txHash'][:22]}... block={receipt['blockNumber']}")
 
         step("voter 2 votes; organizer closes (status -> closing until the chain confirms)")
-        httpx.post(f"{BASE}/api/v1/elections/{election_id}/ballots",
-                   json={"candidate_id": choice_c}, headers=v2_hdr)
+        second = httpx.post(f"{BASE}/api/v1/vote/ballot",
+                            json={"candidateId": choice_c}, headers=v2_hdr)
+        assert second.status_code == 202, second.text
+        second_ballot = second.json()
         closed = httpx.post(f"{BASE}/api/v1/elections/{election_id}/close", json={}, headers=org_hdr)
         assert closed.status_code == 200 and closed.json()["status"] == "closing", closed.text
         _wait_all_confirmed(election_id, {"publish_ballot", "close_election", "publish_result"}, org_hdr)
@@ -248,7 +261,17 @@ def main() -> int:
 
         # --- independent on-chain verification ------------------------------
         step("independent verification against the deployed contract (web3 + manifest)")
-        _verify_on_chain(election_id, receipt, configuration, results)
+        publications = httpx.get(
+            f"{BASE}/api/v1/elections/{election_id}/publications", headers=org_hdr
+        ).json()["publications"]
+        chain_check = _verify_on_chain(
+            election_id,
+            receipt,
+            configuration,
+            results,
+            publications,
+            [first_ballot, second_ballot],
+        )
         print("    getElection: state=Closed, configHash/resultCommitment match, 2 ballots on chain")
 
         REPORT["result"] = "PASSED"
@@ -256,6 +279,23 @@ def main() -> int:
                               "status": status_now, "total_ballots": results["total_ballots"],
                               "published_result_status": results["published_result_status"],
                               "disclaimer": results["disclaimer"]}
+        REPORT["chain_verification"] = {
+            "chain_id": 31337,
+            "election_state": "Closed",
+            "config_hash": configuration["config_hash"],
+            "result_hash": _expected_result_hash(results, election_id),
+            "publication_jobs": [
+                {
+                    "job_type": job["job_type"],
+                    "status": job["status"],
+                    "receipt_id": job["receipt_id"],
+                    "transaction_hash": job["transaction_hash"],
+                    "block_number": job["block_number"],
+                }
+                for job in publications
+            ],
+            **chain_check,
+        }
         print(f"\n{'=' * 72}\nCHECKPOINT 2 PASSED — {LABEL}\n{'=' * 72}")
         return 0
     except BaseException as exc:
@@ -263,7 +303,7 @@ def main() -> int:
         raise
     finally:
         save_report()
-        server.send_signal(signal.SIGINT)
+        server.terminate()
         try:
             server.wait(timeout=10)
         except subprocess.TimeoutExpired:
@@ -293,7 +333,14 @@ def _wait_all_confirmed(election_id: str, job_types: set[str], headers: dict) ->
         print(f"      {job['job_type']:<18} {job['status']:<9} tx={str(job['transaction_hash'])[:22]} block={job['block_number']}")
 
 
-def _verify_on_chain(election_id: str, receipt: dict, configuration: dict, results: dict) -> None:
+def _verify_on_chain(
+    election_id: str,
+    receipt: dict,
+    configuration: dict,
+    results: dict,
+    publications: list[dict],
+    ballots: list[dict],
+) -> dict:
     from app.blockchain.publisher import load_deployment
 
     manifest = load_deployment(os.environ.get(
@@ -308,22 +355,74 @@ def _verify_on_chain(election_id: str, receipt: dict, configuration: dict, resul
     assert Web3.to_hex(result_commitment) == _expected_result_hash(results, election_id)
     assert ballot_count == 2
 
-    for receipt_id, commitment in ((receipt["receipt_id"], receipt["commitment"]),):
+    for receipt_id, commitment in ((receipt["receiptId"], receipt["commitment"]),):
         stored = contract.functions.ballotCommitments(
             election_b32, "0x" + "00" * 16 + uuid.UUID(receipt_id).hex
         ).call()
         assert Web3.to_hex(stored) == commitment.lower()
 
-    logs = w3.eth.get_logs({
-        "fromBlock": manifest["blockNumber"],
-        "toBlock": "latest",
-        "address": Web3.to_checksum_address(manifest["address"]),
-        "topics": [
-            "0x" + keccak(text="BallotPublished(bytes32,bytes32,bytes32,address)").hex(),
-            election_b32,
-        ],
-    })
-    assert len(logs) == 2, f"expected exactly 2 BallotPublished events, got {len(logs)}"
+    ballot_by_id = {ballot["receiptId"]: ballot for ballot in ballots}
+    expected_events = {
+        "register_election": ("ElectionRegistered", {
+            "electionId": election_b32,
+            "configHash": configuration["config_hash"],
+        }),
+        "open_election": ("ElectionOpened", {"electionId": election_b32}),
+        "close_election": ("ElectionClosed", {"electionId": election_b32}),
+        "publish_result": ("ResultPublished", {
+            "electionId": election_b32,
+            "resultHash": _expected_result_hash(results, election_id),
+        }),
+    }
+    verified: list[dict] = []
+    for job in publications:
+        job_type = job["job_type"]
+        if job_type == "publish_ballot":
+            ballot = ballot_by_id[job["receipt_id"]]
+            event_name = "BallotPublished"
+            expected = {
+                "electionId": election_b32,
+                "ballotId": "0x" + "00" * 16 + uuid.UUID(ballot["receiptId"]).hex,
+                "commitment": ballot["commitment"],
+            }
+        else:
+            event_name, expected = expected_events[job_type]
+
+        assert job["transaction_hash"], f"{job_type} has no transaction hash"
+        tx_receipt = w3.eth.get_transaction_receipt(job["transaction_hash"])
+        assert tx_receipt.status == 1, f"{job_type} transaction reverted"
+        event_factory = getattr(contract.events, event_name)
+        decoded = event_factory().process_receipt(tx_receipt)
+        assert len(decoded) == 1, f"{job_type} should emit exactly one {event_name}"
+        args = decoded[0]["args"]
+        expected["relayer"] = manifest["relayer"]
+        for name, value in expected.items():
+            actual = args[name]
+            if isinstance(actual, bytes):
+                actual = Web3.to_hex(actual)
+            assert str(actual).lower() == str(value).lower(), (
+                f"{job_type} {event_name}.{name}: expected {value}, got {actual}"
+            )
+        verified.append({
+            "job_type": job_type,
+            "event": event_name,
+            "transaction_hash": job["transaction_hash"],
+            "arguments": {
+                name: (Web3.to_hex(value) if isinstance(value, bytes) else value)
+                for name, value in expected.items()
+            },
+        })
+    assert len(verified) == 6, f"expected six confirmed publication events, got {len(verified)}"
+    return {
+        "contract_address": manifest["address"],
+        "get_election": {
+            "state": state,
+            "configHash": Web3.to_hex(config_hash),
+            "resultCommitment": Web3.to_hex(result_commitment),
+            "ballotCount": ballot_count,
+        },
+        "events": verified,
+    }
 
 
 def _expected_result_hash(results: dict, election_id: str) -> str:

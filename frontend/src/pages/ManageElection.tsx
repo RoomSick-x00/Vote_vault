@@ -2,14 +2,14 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, Play, Plus, RefreshCw, Square, Users, Vote } from 'lucide-react'
 import { api, electionIndex } from '../services/api'
-import type { ApiError, Election, EligibleVotersOut } from '../types'
+import type { ApiError, Election, VoterRecord } from '../types'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import { Button } from '../components/ui/Button'
 import { ErrorMessage } from '../components/ui/ErrorMessage'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { ConfirmationModal } from '../components/ui/ConfirmationModal'
 import ShareCard from '../components/ShareCard'
-import EligibleVoters from '../components/EligibleVoters'
+import VoterRoster from '../components/VoterRoster'
 import PublicationsPanel from '../components/PublicationsPanel'
 
 /**
@@ -20,7 +20,7 @@ import PublicationsPanel from '../components/PublicationsPanel'
 export default function ManageElection() {
   const { id } = useParams<{ id: string }>()
   const [election, setElection] = useState<Election | null>(null)
-  const [voters, setVoters] = useState<EligibleVotersOut['eligible_test_voters']>([])
+  const [voters, setVoters] = useState<VoterRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<ApiError | null>(null)
   const [pubRefresh, setPubRefresh] = useState(0)
@@ -34,12 +34,9 @@ export default function ManageElection() {
       if (!silent) setLoading(true)
       setError(null)
       try {
-        const [e, roster] = await Promise.all([
-          api.getElection(id),
-          api.getEligibleVoters(id).catch(() => null),
-        ])
+        const [e, roster] = await Promise.all([api.getElection(id), api.getVoters(id)])
         setElection(e)
-        setVoters(roster?.eligible_test_voters ?? [])
+        setVoters(roster.voters)
       } catch (err) {
         setError(err as ApiError)
       } finally {
@@ -220,7 +217,7 @@ export default function ManageElection() {
       {!isClosed && (
         <div className="mt-8">
           <h2 className="mb-3 font-mono text-xs font-semibold tracking-wider text-ash">SHARE WITH VOTERS</h2>
-          <ShareCard electionId={election.election_id} title={election.title} />
+          <ShareCard electionCode={election.code} title={election.title} />
         </div>
       )}
 
@@ -231,6 +228,7 @@ export default function ManageElection() {
             <div key={c.candidate_id} className="rounded-2xl border border-white/10 bg-obsidian/70 p-4">
               <p className="font-mono text-[10px] text-saffron">CHAIN INDEX {c.chain_index}</p>
               <p className="mt-1 font-display font-bold text-paper">{c.name}</p>
+              {c.description && <p className="mt-1 text-xs text-ash">{c.description}</p>}
             </div>
           ))}
           {isDraft && <DraftCandidates electionId={election.election_id} onAdded={() => load(true)} />}
@@ -241,11 +239,13 @@ export default function ManageElection() {
           )}
         </div>
 
-        <EligibleVoters
+        <VoterRoster
           electionId={election.election_id}
           voters={voters}
           onChanged={() => load(true)}
           disabled={isClosing || isClosed}
+          canUpload={isDraft || isOpen}
+          canDelete={isDraft}
         />
       </div>
 
@@ -256,7 +256,7 @@ export default function ManageElection() {
       <ConfirmationModal
         isOpen={modal === 'open'}
         title="Open voting?"
-        description="Voters on the eligible roster can sign in and cast ballots. The candidate set and configuration freeze and are committed on chain."
+        description="Voters on the uploaded roster can verify their contact and cast a ballot. The candidate set and configuration freeze and are committed on chain."
         confirmText="Open voting"
         isLoading={acting}
         onConfirm={openVoting}

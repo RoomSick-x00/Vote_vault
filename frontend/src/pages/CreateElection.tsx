@@ -23,6 +23,9 @@ export default function CreateElection() {
 
   const [organizationId, setOrganizationId] = useState(organizations[0]?.organization_id ?? '')
   const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
+  const [identityColumns, setIdentityColumns] = useState<Array<'name' | 'rollNo'>>(['rollNo'])
+  const [otpChannels, setOtpChannels] = useState<Array<'email' | 'phone'>>(['email'])
   const [opensAt, setOpensAt] = useState('')
   const [closesAt, setClosesAt] = useState('')
   const [candidates, setCandidates] = useState([{ name: '' }, { name: '' }])
@@ -42,6 +45,12 @@ export default function CreateElection() {
     if (title.trim().length < 3) {
       return setError({ error: 'VALIDATION_ERROR', message: 'Election title must be at least 3 characters.' })
     }
+    if (identityColumns.length === 0 || otpChannels.length === 0) {
+      return setError({
+        error: 'VALIDATION_ERROR',
+        message: 'Select at least one voter identity field and one OTP contact channel.',
+      })
+    }
     const names = candidates.map((c) => c.name.trim()).filter(Boolean)
     if (names.length < MIN_CANDIDATES) {
       return setError({
@@ -58,6 +67,8 @@ export default function CreateElection() {
       const election = await api.createElection({
         organization_id: organizationId,
         title: title.trim(),
+        description: description.trim(),
+        voter_schema: { identityColumns, otpChannels },
         opens_at: opensAt ? new Date(opensAt).toISOString() : null,
         closes_at: closesAt ? new Date(closesAt).toISOString() : null,
       })
@@ -87,8 +98,7 @@ export default function CreateElection() {
       <div className="mt-6 border-b border-white/10 pb-6">
         <h1 className="font-display text-3xl font-bold text-paper">Create election</h1>
         <p className="mt-1 text-sm text-ash">
-          A draft is created first; candidates are frozen when voting opens, and eligible voters are added on the
-          next screen.
+          A draft is created first; candidates and voter verification settings are frozen when voting opens.
         </p>
       </div>
 
@@ -134,6 +144,12 @@ export default function CreateElection() {
             placeholder="e.g. Student Council Election 2026"
             required
           />
+          <Field
+            label="Description (optional)"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="What is this election for?"
+          />
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
@@ -173,8 +189,54 @@ export default function CreateElection() {
         </section>
 
         <section className="space-y-4 rounded-3xl border border-white/10 bg-charcoal/50 p-6">
+          <h2 className="font-display text-lg font-bold text-paper">2. Voter verification</h2>
+          <p className="font-mono text-[10px] leading-relaxed text-ash/70">
+            These fields define the roster columns voters identify with and the contact channels used for one-time
+            codes. Matching is roster-based; no voter account is required.
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <fieldset className="space-y-2">
+              <legend className="font-mono text-[11px] font-medium tracking-wide text-ash">IDENTITY FIELDS</legend>
+              {(['name', 'rollNo'] as const).map((field) => (
+                <label key={field} className="flex items-center gap-2 text-sm text-paper">
+                  <input
+                    type="checkbox"
+                    checked={identityColumns.includes(field)}
+                    onChange={(event) =>
+                      setIdentityColumns((current) =>
+                        event.target.checked ? [...current, field] : current.filter((value) => value !== field)
+                      )
+                    }
+                    className="accent-[#ff9933]"
+                  />
+                  {field === 'name' ? 'Name' : 'Roll number'}
+                </label>
+              ))}
+            </fieldset>
+            <fieldset className="space-y-2">
+              <legend className="font-mono text-[11px] font-medium tracking-wide text-ash">OTP CHANNELS</legend>
+              {(['email', 'phone'] as const).map((channel) => (
+                <label key={channel} className="flex items-center gap-2 text-sm text-paper">
+                  <input
+                    type="checkbox"
+                    checked={otpChannels.includes(channel)}
+                    onChange={(event) =>
+                      setOtpChannels((current) =>
+                        event.target.checked ? [...current, channel] : current.filter((value) => value !== channel)
+                      )
+                    }
+                    className="accent-[#ff9933]"
+                  />
+                  {channel === 'email' ? 'Email' : 'Phone'}
+                </label>
+              ))}
+            </fieldset>
+          </div>
+        </section>
+
+        <section className="space-y-4 rounded-3xl border border-white/10 bg-charcoal/50 p-6">
           <div className="flex items-center justify-between">
-            <h2 className="font-display text-lg font-bold text-paper">2. Candidates</h2>
+            <h2 className="font-display text-lg font-bold text-paper">3. Candidates</h2>
             <span className="font-mono text-xs text-ash">
               {candidates.filter((c) => c.name.trim()).length} named / {MAX_CANDIDATES}
             </span>

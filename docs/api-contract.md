@@ -2,9 +2,9 @@
 
 # API contract — agreed and implemented (milestone 1)
 
-**Status: implemented** on branch `backend/m1-skeleton` (backend owner: Member 2).
-This replaces the earlier draft. Scope remains milestone 1: identified eligible
-test voters, duplicate rejection, local-chain commitments, a demo backend tally,
+**Status: implemented** on the current backend.
+Scope remains milestone 1: roster-identified voters using OTP, duplicate rejection,
+local-chain commitments, a demo backend tally,
 and receipt checks. It does NOT provide anonymous eligibility, encrypted
 ballots, or independent tally verification — every result response carries the
 disclaimer: “backend demo tally; independent private tally verification pending.”
@@ -23,8 +23,8 @@ disclaimer: “backend demo tally; independent private tally verification pendin
 
 - Any authenticated user may found an organization (`POST /organizations`) and
   becomes its `owner`; `owner`/`organizer` members manage its elections.
-- Draft elections are organizer-only. Open/closed elections are visible to any
-  authenticated user (voting UI needs the candidate list).
+- Draft elections are organizer-only. Public voter access to open elections
+  uses the election-code endpoints and a scoped voter session, not organizer auth.
 - The eligible-voter roster, receipts, and all ballot data are organizer/voter
   private as noted per endpoint; ballot rows are never exposed to organizers.
 
@@ -120,7 +120,7 @@ mandatory in the roster.
 
 ### 5. Open election
 `POST /api/v1/elections/{election_id}/open` — organizer. Requires ≥1 candidate
-(`409 ELECTION_HAS_NO_CANDIDATES`) and ≥1 eligible voter (`409 ELECTION_HAS_NO_VOTERS`).
+(`409 ELECTION_HAS_NO_CANDIDATES`) and ≥1 roster entry (`409 ELECTION_HAS_NO_VOTERS`).
 `draft → open`; reopening → `409 ELECTION_NOT_DRAFT`. → `200`
 `{ "election_id", "status": "open", "opened_at" }`. Queues an `open_election` job.
 

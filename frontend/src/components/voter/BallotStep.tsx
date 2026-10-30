@@ -1,22 +1,20 @@
 import { useState } from 'react'
 import { CheckCircle2, Vote } from 'lucide-react'
-import { api, rememberReceipt } from '../../services/api'
-import type { ApiError, Candidate } from '../../types'
+import { api } from '../../services/api'
+import type { ApiError, VoterCandidate } from '../../types'
 import { Button } from '../ui/Button'
 import { ConfirmationModal } from '../ui/ConfirmationModal'
 import { ErrorMessage } from '../ui/ErrorMessage'
 
 interface BallotStepProps {
   electionId: string
-  candidates: Candidate[]
+  candidates: VoterCandidate[]
   /** Called when the backend reports this voter already has a ballot on file. */
   onAlreadyVoted: (receiptId: string) => void
 }
 
 /**
- * One eligible voter, one ballot. Submitting the same choice again returns the
- * original receipt (idempotent retry); a different choice is rejected with
- * DUPLICATE_VOTE and the original stands.
+ * Submits one ballot using the short-lived voter session established by OTP.
  */
 export default function BallotStep({ electionId, candidates, onAlreadyVoted }: BallotStepProps) {
   const [selected, setSelected] = useState<string | null>(null)
@@ -25,29 +23,29 @@ export default function BallotStep({ electionId, candidates, onAlreadyVoted }: B
   const [error, setError] = useState<ApiError | null>(null)
   const [retryInfo, setRetryInfo] = useState<string | null>(null)
 
-  const chosen = candidates.find((c) => c.candidate_id === selected)
+  const chosen = candidates.find((c) => c.id === selected)
 
   const submit = async () => {
     if (!selected) return
     setSubmitting(true)
     setError(null)
     try {
-      const receipt = await api.submitBallot(electionId, selected)
-      rememberReceipt(electionId, receipt.receipt_id)
-      if (receipt.idempotent_retry) {
-        onAlreadyVoted(receipt.receipt_id)
-        return
-      }
-      window.location.assign(`/receipt/${electionId}/${receipt.receipt_id}`)
+      const receipt = await api.submitVoterBallot(selected)
+      window.location.assign(`/receipt/${electionId}/${receipt.receiptId}`)
     } catch (err) {
       const apiErr = err as ApiError
       setError(apiErr)
       if (apiErr.error === 'DUPLICATE_VOTE') {
-        // The original ballot stands; without a stored receipt id we cannot link
-        // to it, but the organizer's publication monitor shows it on chain.
-        setRetryInfo(
-          'A ballot from this account was already recorded — the original choice stands. Ask the organizer to check the publication monitor for your receipt id.'
-        )
+        try {
+          const session = await api.getVoterSession()
+          if (session.receiptId) {
+            onAlreadyVoted(session.receiptId)
+            return
+          }
+        } catch {
+          // Keep the duplicate response visible if the session cannot be refreshed.
+        }
+        setRetryInfo('A ballot is already recorded for this voter.')
         setConfirming(false)
         return
       }
@@ -74,10 +72,10 @@ export default function BallotStep({ electionId, candidates, onAlreadyVoted }: B
 
       <div className="space-y-3" role="radiogroup" aria-label="Candidates">
         {candidates.map((c) => {
-          const active = selected === c.candidate_id
+          const active = selected === c.id
           return (
             <label
-              key={c.candidate_id}
+              key={c.id}
               className={`flex cursor-pointer items-start gap-4 rounded-2xl border p-4 transition ${
                 active
                   ? 'border-saffron bg-saffron/10 ring-1 ring-saffron'
@@ -87,16 +85,14 @@ export default function BallotStep({ electionId, candidates, onAlreadyVoted }: B
               <input
                 type="radio"
                 name="candidate"
-                value={c.candidate_id}
+                value={c.id}
                 checked={active}
-                onChange={() => setSelected(c.candidate_id)}
+                onChange={() => setSelected(c.id)}
                 className="mt-1 h-5 w-5 accent-[#ff9933]"
               />
               <span>
                 <span className="block font-display text-base font-bold text-paper">{c.name}</span>
-                <span className="mt-0.5 block font-mono text-[10px] text-ash/70">
-                  chain index {c.chain_index}
-                </span>
+                {c.description && <span className="mt-1 block text-xs text-ash">{c.description}</span>}
               </span>
             </label>
           )

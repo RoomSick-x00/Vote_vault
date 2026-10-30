@@ -1,88 +1,53 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowRight, Copy, Lock, RefreshCw, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, RefreshCw, ShieldCheck } from 'lucide-react'
 import { api, getVoterToken } from '../services/api'
-import type { ApiError, BallotReceipt } from '../types'
+import type { ApiError, VoterReceipt } from '../types'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import { Button } from '../components/ui/Button'
 import { ErrorMessage } from '../components/ui/ErrorMessage'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
-import VoterSignIn from '../components/voter/VoterSignIn'
 
-/**
- * Ballot receipt: cryptographic commitment + nonce + on-chain publication
- * status. Visible only to the submitting voter (backend enforces it), so a
- * fresh tab asks for sign-in again.
- */
 export default function ReceiptScreen() {
   const { electionId, receiptId } = useParams<{ electionId: string; receiptId: string }>()
-  const [receipt, setReceipt] = useState<BallotReceipt | null>(null)
+  const [receipt, setReceipt] = useState<VoterReceipt | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<ApiError | null>(null)
-  const [needsSignIn, setNeedsSignIn] = useState(false)
-  const [copied, setCopied] = useState<'commitment' | 'nonce' | null>(null)
 
-  const fetchReceipt = useCallback(
-    async (isManualRefresh = false) => {
-      if (!electionId || !receiptId) return
-      if (isManualRefresh) setRefreshing(true)
-      else setLoading(true)
-      setError(null)
-      try {
-        setReceipt(await api.getReceipt(electionId, receiptId))
-      } catch (err) {
-        const apiErr = err as ApiError
-        setNeedsSignIn(apiErr.error === 'UNAUTHENTICATED')
-        setError(apiErr)
-      } finally {
-        setLoading(false)
-        setRefreshing(false)
+  const fetchReceipt = useCallback(async (manual = false) => {
+    if (manual) setRefreshing(true)
+    else setLoading(true)
+    setError(null)
+    try {
+      const current = await api.getVoterReceipt()
+      if (current.electionId !== electionId || current.receiptId !== receiptId) {
+        throw { error: 'NOT_FOUND', message: 'This receipt does not match the active voter session.' } satisfies ApiError
       }
-    },
-    [electionId, receiptId]
-  )
+      setReceipt(current)
+    } catch (err) {
+      setError(err as ApiError)
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
+  }, [electionId, receiptId])
 
   useEffect(() => {
-    if (getVoterToken()) fetchReceipt()
+    if (getVoterToken()) void fetchReceipt()
     else {
-      setNeedsSignIn(true)
+      setError({ error: 'UNAUTHENTICATED', message: 'The voter session has expired. Return to the election code to verify again.' })
       setLoading(false)
     }
   }, [fetchReceipt])
 
-  // Poll while pending until the publication job confirms or fails.
   useEffect(() => {
     if (receipt?.status !== 'pending') return
-    const timer = setInterval(() => fetchReceipt(true), 2500)
+    const timer = setInterval(() => void fetchReceipt(true), 2500)
     return () => clearInterval(timer)
   }, [receipt?.status, fetchReceipt])
 
-  const copy = async (kind: 'commitment' | 'nonce') => {
-    if (!receipt) return
-    try {
-      await navigator.clipboard.writeText(kind === 'commitment' ? receipt.commitment : receipt.nonce)
-      setCopied(kind)
-      setTimeout(() => setCopied(null), 2000)
-    } catch {
-      /* clipboard unavailable */
-    }
-  }
-
-  if (loading) return <LoadingSpinner label="Retrieving cryptographic ballot receipt..." />
-
-  if (needsSignIn) {
-    return (
-      <div className="mx-auto flex min-h-[calc(100vh-140px)] max-w-md flex-col justify-center px-4 py-10">
-        <div className="rounded-3xl border border-white/10 bg-charcoal/70 p-6 shadow-2xl backdrop-blur-xl sm:p-8">
-          <p className="mb-4 text-sm text-ash">
-            Receipts are visible only to the voter who submitted them. Sign in with the account you voted with.
-          </p>
-          <VoterSignIn onSignedIn={() => fetchReceipt()} />
-        </div>
-      </div>
-    )
-  }
+  if (loading) return <LoadingSpinner label="Checking ballot publication..." />
 
   if (!receipt) {
     return (
@@ -95,161 +60,55 @@ export default function ReceiptScreen() {
     )
   }
 
-  const isConfirmed = receipt.status === 'confirmed'
-  const isPending = receipt.status === 'pending'
-
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
-      {/* Top Banner */}
       <div className="mb-8 text-center">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-400">
-          <ShieldCheck className="h-8 w-8" />
-        </div>
-        <span className="mt-3 block font-mono text-[11px] tracking-[0.24em] text-saffron">
-          CRYPTOGRAPHIC PROOF OF SUBMISSION
-        </span>
-        <h1 className="mt-1 font-display text-3xl font-bold text-paper">Ballot Receipt</h1>
-        <p className="mx-auto mt-2 max-w-md text-sm text-ash">
-          Keep the commitment and nonce — together they let you recompute your ballot commitment and confirm it was
-          counted once results are published.
-        </p>
+        <ShieldCheck className="mx-auto h-12 w-12 text-emerald-400" />
+        <p className="mt-3 font-mono text-[11px] tracking-[0.24em] text-saffron">BALLOT RECEIPT</p>
+        <h1 className="mt-1 font-display text-3xl font-bold text-paper">Submission status</h1>
       </div>
 
       {error && <ErrorMessage error={error} className="mb-6" />}
 
-      {/* Main Receipt Certificate */}
-      <div className="rounded-3xl border border-white/15 bg-charcoal/80 p-6 shadow-2xl backdrop-blur-xl sm:p-8">
-        {/* Status Header */}
+      <section className="rounded-3xl border border-white/15 bg-charcoal/80 p-6 shadow-2xl sm:p-8">
         <div className="flex flex-col justify-between gap-4 border-b border-white/10 pb-6 sm:flex-row sm:items-center">
           <div className="min-w-0">
             <p className="font-mono text-[10px] tracking-wider text-ash">RECEIPT ID</p>
-            <p className="truncate font-mono text-sm font-bold tracking-wider text-paper">{receipt.receipt_id}</p>
+            <p className="truncate font-mono text-sm font-bold text-paper">{receipt.receiptId}</p>
           </div>
-
-          <div className="flex shrink-0 items-center gap-3">
+          <div className="flex items-center gap-3">
             <StatusBadge status={receipt.status} type="publication" />
-            <Button variant="secondary" size="sm" onClick={() => fetchReceipt(true)} disabled={refreshing}>
+            <Button variant="secondary" size="sm" onClick={() => void fetchReceipt(true)} disabled={refreshing}>
               <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
           </div>
         </div>
 
-        <div className="mt-6 space-y-4">
-          {/* Commitment */}
+        <div className="mt-6 space-y-4 font-mono text-xs">
           <div>
-            <div className="flex items-center justify-between">
-              <label className="font-mono text-xs font-semibold tracking-wider text-ash">BALLOT COMMITMENT</label>
-              <button
-                type="button"
-                onClick={() => copy('commitment')}
-                className="flex items-center gap-1 font-mono text-[11px] text-saffron hover:underline"
-              >
-                <Copy className="h-3 w-3" />
-                {copied === 'commitment' ? 'Copied!' : 'Copy'}
-              </button>
-            </div>
-            <div className="mt-1.5 break-all rounded-2xl border border-white/10 bg-obsidian p-4 font-mono text-xs text-paper/90 select-all">
-              {receipt.commitment}
-            </div>
+            <p className="text-ash">BALLOT COMMITMENT</p>
+            <p className="mt-1 break-all rounded-xl border border-white/10 bg-obsidian p-4 text-paper">{receipt.commitment}</p>
           </div>
-
-          {/* Nonce */}
-          <div>
-            <div className="flex items-center justify-between">
-              <label className="font-mono text-xs font-semibold tracking-wider text-ash">
-                COMMITMENT NONCE (KEEP PRIVATE)
-              </label>
-              <button
-                type="button"
-                onClick={() => copy('nonce')}
-                className="flex items-center gap-1 font-mono text-[11px] text-saffron hover:underline"
-              >
-                <Copy className="h-3 w-3" />
-                {copied === 'nonce' ? 'Copied!' : 'Copy'}
-              </button>
-            </div>
-            <div className="mt-1.5 break-all rounded-2xl border border-white/10 bg-obsidian p-4 font-mono text-xs text-paper/90 select-all">
-              {receipt.nonce}
-            </div>
-          </div>
-
-          {/* Blockchain Publication State */}
-          <div className="space-y-3 rounded-2xl border border-white/10 bg-obsidian/60 p-5 font-mono text-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-ash">CHAIN PUBLICATION:</span>
-              <span
-                className={`font-bold ${
-                  isConfirmed ? 'text-emerald-400' : isPending ? 'animate-pulse text-amber-400' : 'text-red-400'
-                }`}
-              >
-                {isConfirmed ? 'CONFIRMED ON-CHAIN' : isPending ? 'PENDING PUBLICATION…' : 'PUBLICATION FAILED'}
-              </span>
-            </div>
-
-            {receipt.block_number != null && (
-              <div className="flex items-center justify-between">
-                <span className="text-ash">BLOCK NUMBER:</span>
-                <span className="text-paper">#{receipt.block_number}</span>
-              </div>
-            )}
-
-            {receipt.transaction_hash && (
-              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                <span className="text-ash">TRANSACTION HASH:</span>
-                <code className="break-all text-[11px] text-paper/80 sm:max-w-[320px] sm:truncate">
-                  {receipt.transaction_hash}
-                </code>
-              </div>
-            )}
-
-            {receipt.submitted_at && (
-              <div className="flex items-center justify-between">
-                <span className="text-ash">SUBMITTED AT:</span>
-                <span className="text-paper">{new Date(receipt.submitted_at).toLocaleString()}</span>
-              </div>
-            )}
-
-            {receipt.confirmed_at && (
-              <div className="flex items-center justify-between">
-                <span className="text-ash">CONFIRMED AT:</span>
-                <span className="text-emerald-300">{new Date(receipt.confirmed_at).toLocaleString()}</span>
-              </div>
-            )}
-
-            {receipt.error && (
-              <p className="break-all rounded-lg border border-red-500/20 bg-red-950/20 p-2 text-[10px] text-red-300">
-                {receipt.error}
-              </p>
-            )}
-          </div>
+          {receipt.blockNumber != null && <p className="text-ash">BLOCK NUMBER: <span className="text-paper">#{receipt.blockNumber}</span></p>}
+          {receipt.txHash && (
+            <p className="break-all text-ash">TRANSACTION: <span className="text-paper">{receipt.txHash}</span></p>
+          )}
+          <p className="text-ash">SUBMITTED: <span className="text-paper">{new Date(receipt.createdAt).toLocaleString()}</span></p>
+          {receipt.confirmedAt && (
+            <p className="text-ash">CONFIRMED: <span className="text-emerald-300">{new Date(receipt.confirmedAt).toLocaleString()}</span></p>
+          )}
         </div>
 
-        {/* Voter Privacy Notice */}
-        <div className="mt-6 space-y-1 border-t border-white/10 pt-5 text-xs leading-relaxed text-ash">
-          <p className="flex items-center gap-2 font-mono text-[11px] text-paper">
-            <Lock className="h-3.5 w-3.5 shrink-0 text-saffron" />
-            <span>Secret ballot preserved</span>
-          </p>
-          <p className="text-[11px] text-ash/80">
-            The receipt records a commitment to your choice — never the choice itself. Even this screen shows only
-            the candidate ID, not the name you selected.
-          </p>
+        <div className="mt-6 border-t border-white/10 pt-5 text-xs leading-relaxed text-ash">
+          The public chain contains the commitment, not the selected candidate. This receipt confirms submission and
+          publication status; it is not an independent proof of ballot secrecy or tally correctness.
         </div>
-      </div>
+      </section>
 
-      {/* Action Links */}
-      <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <Link to="/voter">
-          <Button variant="secondary">← Back to Voter Hub</Button>
-        </Link>
-
-        <Link to={`/results/${electionId}`}>
-          <Button>
-            <span>Check election results</span>
-            <ArrowRight className="h-4 w-4" />
-          </Button>
-        </Link>
+      <div className="mt-8 flex justify-between">
+        <Link to="/voter"><Button variant="secondary"><ArrowLeft className="h-4 w-4" /> Voter Hub</Button></Link>
+        <Link to={`/results/${electionId}`}><Button>Election results</Button></Link>
       </div>
     </div>
   )

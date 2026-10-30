@@ -3,11 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowRight, Vote } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { ErrorMessage } from '../components/ui/ErrorMessage'
-import { extractElectionId, isElectionId } from '../lib/code'
+import { extractElectionCode, isElectionCode } from '../lib/code'
 
 /**
- * Voter entry point. Elections are addressed by their UUID in this milestone —
- * paste the election ID or the full /vote/<id> link an organizer shared.
+ * Voters join with the short share code or the QR link from the organizer.
  */
 export default function VoterHub() {
   const navigate = useNavigate()
@@ -15,9 +14,9 @@ export default function VoterHub() {
   const [error, setError] = useState<string | null>(null)
 
   const join = () => {
-    const clean = extractElectionId(electionId)
-    if (!isElectionId(clean)) {
-      setError('Enter a valid election ID (the link or UUID your organizer shared).')
+    const clean = extractElectionCode(electionId)
+    if (!isElectionCode(clean)) {
+      setError('Enter the 8-character election code or scan the link the organizer shared.')
       return
     }
     navigate(`/vote/${clean}`)
@@ -47,7 +46,7 @@ export default function VoterHub() {
         >
           <div>
             <label htmlFor="election-id" className="block font-mono text-[11px] tracking-wide text-ash">
-              ELECTION ID OR LINK
+              ELECTION CODE OR LINK
             </label>
             <input
               id="election-id"
@@ -55,7 +54,7 @@ export default function VoterHub() {
               onChange={(e) => setElectionId(e.target.value)}
               autoComplete="off"
               spellCheck={false}
-              placeholder="00000000-0000-0000-0000-000000000000"
+              placeholder="ABCD2345"
               className="mt-1.5 w-full rounded-xl border border-white/15 bg-obsidian px-4 py-3 font-mono text-sm text-paper placeholder:text-ash/30 focus:border-electric focus:outline-none"
             />
           </div>
@@ -66,8 +65,7 @@ export default function VoterHub() {
         </form>
 
         <p className="mt-6 text-center text-xs text-ash">
-          You will sign in with your VoteVault account — only voters on the organizer's eligible roster can cast a
-          ballot.
+          Only voters on the organizer's roster can verify and cast a ballot.
         </p>
       </div>
     </div>

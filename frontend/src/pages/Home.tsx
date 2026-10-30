@@ -15,14 +15,14 @@ import { useAuth } from '../context/AuthContext'
 
 const ORGANIZER_STEPS = [
   { icon: UserPlus, title: 'Create an account', body: 'Sign up as an organiser. Your organisation and elections are created in one flow.' },
-  { icon: FileSpreadsheet, title: 'Add candidates & eligible voters', body: 'Add candidates to the draft, then whitelist voters by their VoteVault user ID.' },
-  { icon: QrCode, title: 'Open voting & share the link', body: 'Open the election and share the link or QR. Ballot commitments publish to the chain as votes arrive.' },
+  { icon: FileSpreadsheet, title: 'Add candidates & upload voters', body: 'Add candidates and import the voter roster with the configured identity and contact fields.' },
+  { icon: QrCode, title: 'Open voting & share the code', body: 'Open the election and share its code or QR. Ballot commitments publish to the chain as votes arrive.' },
 ]
 
 const VOTER_STEPS = [
-  { icon: KeyRound, title: 'Open the election link', body: 'Open the Voter Hub and paste the election ID or link your organiser shared.' },
-  { icon: ShieldCheck, title: 'Sign in', body: 'Sign in with your VoteVault account — only whitelisted voters can cast a ballot.' },
-  { icon: Vote, title: 'Vote & keep your receipt', body: 'Cast one ballot and keep the commitment + nonce so you can verify it was recorded.' },
+  { icon: KeyRound, title: 'Open the election link', body: "Open the Voter Hub and enter the election code or scan the organiser's QR." },
+  { icon: ShieldCheck, title: 'Verify your roster entry', body: 'Confirm your identity and enter the one-time code sent to your registered contact.' },
+  { icon: Vote, title: 'Vote & keep your receipt', body: 'Cast one ballot and keep its publication receipt; independent tally verification is not yet available.' },
 ]
 
 function Steps({ steps, tone }: { steps: typeof ORGANIZER_STEPS; tone: 'saffron' | 'electric' }) {

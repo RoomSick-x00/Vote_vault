@@ -67,14 +67,23 @@ export type PublishedResultStatus = 'not_published' | 'pending' | 'confirmed' | 
 export interface Candidate {
   candidate_id: string
   name: string
+  description: string
   /** Immutable 0-based insertion order used as the on-chain index. */
   chain_index: number
+}
+
+export interface VoterSchema {
+  identityColumns: Array<'name' | 'rollNo'>
+  otpChannels: Array<'email' | 'phone'>
 }
 
 export interface Election {
   election_id: string
   organization_id: string
   title: string
+  description: string
+  code: string
+  voter_schema: VoterSchema
   status: ElectionStatus
   candidates: Candidate[]
   created_at: string
@@ -87,6 +96,8 @@ export interface Election {
 export interface CreateElectionPayload {
   organization_id: string
   title: string
+  description?: string
+  voter_schema?: VoterSchema
   opens_at?: string | null
   closes_at?: string | null
 }
@@ -117,40 +128,72 @@ export interface CandidatesAddOut extends CandidatesOut {
   skipped: number
 }
 
-export interface EligibleVotersOut {
-  election_id: string
-  eligible_test_voters: Array<{ user_id: string }>
-  added?: number
-  skipped?: number
+export interface VoterRecord {
+  id: string
+  name: string | null
+  rollNo: string | null
+  email: string | null
+  phone: string | null
+  hasVoted: boolean
+  addedAt: string
 }
 
-// ---------- Ballots & receipts ----------
-
-/** 202 response from POST /elections/{id}/ballots — accepted, NOT yet on chain. */
-export interface BallotAccepted {
-  election_id: string
-  receipt_id: string
-  status: PublicationStatus
-  candidate_id: string
-  submitted_at: string
-  idempotent_retry: boolean
+export interface VoterListOut {
+  voters: VoterRecord[]
+  voterCount: number
 }
 
-/** GET /elections/{id}/receipts/{receipt_id} — submitting voter only. */
-export interface BallotReceipt {
-  election_id: string
-  receipt_id: string
-  status: PublicationStatus
-  ballot_accepted: boolean
-  candidate_id: string
+export interface VoterImportReport {
+  imported: number
+  skipped: number
+  errors: Array<{ row: number; message: string }>
+}
+
+export interface PublicElection {
+  id: string
+  code: string
+  title: string
+  description: string
+  status: ElectionStatus
+  voterSchema: VoterSchema
+}
+
+export interface VoterCandidate {
+  id: string
+  name: string
+  description: string
+}
+
+export interface VoterSession {
+  election: PublicElection
+  candidates: VoterCandidate[]
+  voterName: string
+  hasVoted: boolean
+  receiptId: string | null
+}
+
+export interface IdentifyResponse {
+  identifyToken: string
+  channels: Array<'email' | 'phone'>
+}
+
+export interface OtpRequestResponse {
+  resendAfter: number
+  expiresIn: number
+  channel: 'email' | 'phone'
+  devCode?: string | null
+}
+
+export interface VoterReceipt {
+  receiptId: string
+  electionId: string
+  candidateId: string | null
   commitment: string
-  /** 0x-prefixed hex; lets the voter recompute the commitment later. */
-  nonce: string
-  transaction_hash?: string | null
-  block_number?: number | null
-  submitted_at?: string | null
-  confirmed_at?: string | null
-  error?: string | null
+  status: PublicationStatus
+  txHash: string | null
+  blockNumber: number | null
+  createdAt: string
+  confirmedAt: string | null
 }
 
 // ---------- Publications (organizer chain-job monitor) ----------

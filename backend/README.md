@@ -7,7 +7,7 @@ verification, and Web3.py publication of ballot commitments to the local
 Hardhat chain (`ElectionRegistry`, chain id 31337).
 
 **Scope label: “backend demo tally; independent private tally verification pending.”**
-This is a synthetic-data skeleton: identified test voters, plaintext choices in
+This is a synthetic-data skeleton: roster-identified voters, plaintext choices in
 the database (private to the backend), commitments on chain, and a
 backend-computed demo tally. It does NOT provide anonymous eligibility,
 encrypted ballots, or independent verification of the tally. The ballot model
@@ -98,6 +98,10 @@ changes. Full integrated checkpoint:
 .venv/bin/python scripts/integrated_checkpoint.py   # node + relayer key env set
 ```
 
+For the local Hardhat account flow, the no-key-on-disk launcher is
+`blockchain/scripts/live-checkpoint.js`; it starts the HTTP checkpoint and
+passes the local signer only through the child process environment.
+
 ## Tests
 
 ```bash
@@ -130,8 +134,8 @@ returns `403 EMAIL_CONFIRMATION_REQUIRED`.
 .venv/bin/python scripts/demo.py
 ```
 
-Shows: organizer creates an election → adds three candidates and eligible test
-users → opens it → one voter votes → duplicate and ineligible attempts fail →
+Shows: organizer creates an election → adds three candidates and a voter roster
+→ opens it → one voter votes → duplicate and ineligible attempts fail →
 commitments confirm on a real EVM → organizer closes → backend demo tally
 appears — ending with the label:
 
@@ -146,10 +150,11 @@ appears — ending with the label:
 | `POST /elections` | org organizer | create draft election (+ register job) |
 | `GET /elections/{id}` | organizer (draft) / any user (open, closed) | election + candidates |
 | `POST /elections/{id}/candidates` | organizer | add candidates (draft only) |
-| `POST /elections/{id}/eligible-test-voters` | organizer | add eligible synthetic users |
-| `GET /elections/{id}/eligible-test-voters` | organizer | roster (organizer-only) |
+| `POST /elections/{id}/voters/upload` | organizer | import CSV/XLSX roster |
+| `GET /elections/{id}/voters` | organizer | list roster (organizer-only) |
+| `DELETE /elections/{id}/voters/{voter_id}` | organizer | remove roster entry while draft |
 | `POST /elections/{id}/open` | organizer | draft → open (requires candidates + voters) |
-| `POST /elections/{id}/ballots` | eligible voter | submit ballot; `202` accepted; idempotent retry |
+| `POST /vote/ballot` | roster-verified voter | submit ballot; `202` accepted |
 | `GET /elections/{id}/receipts/{receipt_id}` | submitting voter | receipt + publication status |
 | `GET /elections/{id}/publications` | organizer | all publication jobs |
 | `POST /elections/{id}/publications/retry` | organizer | requeue + process now |

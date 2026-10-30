@@ -1,0 +1,165 @@
+{
+  "scope": "live HTTP API + PostgreSQL + Hardhat; synthetic dev JWT users; backend demo tally only",
+  "stages": [
+    {
+      "stage": "starting uvicorn (real backend, background publisher on)",
+      "at": "2026-10-30T22:16:54.990908+00:00"
+    },
+    {
+      "stage": "organizer: organization + election + 3 candidates + uploaded voter roster",
+      "at": "2026-10-30T22:17:00.327385+00:00"
+    },
+    {
+      "stage": "organizer opens the election; worker publishes register (with configHash) + open",
+      "at": "2026-10-30T22:17:01.985607+00:00"
+    },
+    {
+      "stage": "voter 1 votes; duplicate + conflicting + outsider attempts behave",
+      "at": "2026-10-30T22:17:06.944603+00:00"
+    },
+    {
+      "stage": "worker publishes the ballot commitment; receipt confirms with tx + block",
+      "at": "2026-10-30T22:17:08.323621+00:00"
+    },
+    {
+      "stage": "voter 2 votes; organizer closes (status -> closing until the chain confirms)",
+      "at": "2026-10-30T22:17:09.544651+00:00"
+    },
+    {
+      "stage": "results: backend demo tally + anchored result status",
+      "at": "2026-10-30T22:17:11.263574+00:00"
+    },
+    {
+      "stage": "independent verification against the deployed contract (web3 + manifest)",
+      "at": "2026-10-30T22:17:11.573355+00:00"
+    }
+  ],
+  "result": "PASSED",
+  "election": {
+    "election_id": "30b9c8b3-9111-4cde-aa89-e934bb964b5f",
+    "code": "9VYXWWK8",
+    "status": "closed",
+    "total_ballots": 2,
+    "published_result_status": "confirmed",
+    "disclaimer": "backend demo tally; independent private tally verification pending."
+  },
+  "chain_verification": {
+    "chain_id": 31337,
+    "election_state": "Closed",
+    "config_hash": "0xf6d435d573692d6a063761b3fef1ae118e185dee4120cded7a165ee79f5d32e0",
+    "result_hash": "0x3079b900638b6d60549d6d6a23407838ff647152672dcb37316870a03524c0cc",
+    "publication_jobs": [
+      {
+        "job_type": "register_election",
+        "status": "confirmed",
+        "receipt_id": null,
+        "transaction_hash": "0x9d6f15f038889569696de9175c59717366d17133a771d00a6e08bb1ded406d9a",
+        "block_number": 60
+      },
+      {
+        "job_type": "open_election",
+        "status": "confirmed",
+        "receipt_id": null,
+        "transaction_hash": "0xab00579a8082552cc3eddae1736bb3b2c8d1c930f74931a600330713b48a294c",
+        "block_number": 61
+      },
+      {
+        "job_type": "publish_ballot",
+        "status": "confirmed",
+        "receipt_id": "7ee31cbb-754f-49c9-9894-128c6267fc9a",
+        "transaction_hash": "0x3e4a4c7c1c0eba11219a480d541f85ed9c48758905e0416f85fde2a0f2b4c455",
+        "block_number": 62
+      },
+      {
+        "job_type": "publish_ballot",
+        "status": "confirmed",
+        "receipt_id": "7f43520c-f058-450a-91e3-51e91d365cf8",
+        "transaction_hash": "0x2ff0f2afdcebefd62ef4525390cb6016e13c59a1c07c83af1f08580068d1e5d0",
+        "block_number": 63
+      },
+      {
+        "job_type": "close_election",
+        "status": "confirmed",
+        "receipt_id": null,
+        "transaction_hash": "0xcbd46aedc4ddae157299bf871a6711d897a91c15b04e0ecd20cc2f163b9a36cc",
+        "block_number": 64
+      },
+      {
+        "job_type": "publish_result",
+        "status": "confirmed",
+        "receipt_id": null,
+        "transaction_hash": "0x91c53a3a4f54bea642b6833d9086d461d4dd250e5acfe4c9289b1dabc870f17e",
+        "block_number": 65
+      }
+    ],
+    "contract_address": "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9",
+    "get_election": {
+      "state": 3,
+      "configHash": "0xf6d435d573692d6a063761b3fef1ae118e185dee4120cded7a165ee79f5d32e0",
+      "resultCommitment": "0x3079b900638b6d60549d6d6a23407838ff647152672dcb37316870a03524c0cc",
+      "ballotCount": 2
+    },
+    "events": [
+      {
+        "job_type": "register_election",
+        "event": "ElectionRegistered",
+        "transaction_hash": "0x9d6f15f038889569696de9175c59717366d17133a771d00a6e08bb1ded406d9a",
+        "arguments": {
+          "electionId": "0x0000000000000000000000000000000030b9c8b391114cdeaa89e934bb964b5f",
+          "configHash": "0xf6d435d573692d6a063761b3fef1ae118e185dee4120cded7a165ee79f5d32e0",
+          "relayer": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
+        }
+      },
+      {
+        "job_type": "open_election",
+        "event": "ElectionOpened",
+        "transaction_hash": "0xab00579a8082552cc3eddae1736bb3b2c8d1c930f74931a600330713b48a294c",
+        "arguments": {
+          "electionId": "0x0000000000000000000000000000000030b9c8b391114cdeaa89e934bb964b5f",
+          "relayer": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
+        }
+      },
+      {
+        "job_type": "publish_ballot",
+        "event": "BallotPublished",
+        "transaction_hash": "0x3e4a4c7c1c0eba11219a480d541f85ed9c48758905e0416f85fde2a0f2b4c455",
+        "arguments": {
+          "electionId": "0x0000000000000000000000000000000030b9c8b391114cdeaa89e934bb964b5f",
+          "ballotId": "0x000000000000000000000000000000007ee31cbb754f49c99894128c6267fc9a",
+          "commitment": "0x7ba13f02cb426a02195c47178458133d1f8f6756f88bc32d30cdb33295dc1e23",
+          "relayer": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
+        }
+      },
+      {
+        "job_type": "publish_ballot",
+        "event": "BallotPublished",
+        "transaction_hash": "0x2ff0f2afdcebefd62ef4525390cb6016e13c59a1c07c83af1f08580068d1e5d0",
+        "arguments": {
+          "electionId": "0x0000000000000000000000000000000030b9c8b391114cdeaa89e934bb964b5f",
+          "ballotId": "0x000000000000000000000000000000007f43520cf058450a91e351e91d365cf8",
+          "commitment": "0xfdd702a4643b467e4dd61c3a8c9b1ade2134aa8a4e3d78cdd45da81cf403df5a",
+          "relayer": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
+        }
+      },
+      {
+        "job_type": "close_election",
+        "event": "ElectionClosed",
+        "transaction_hash": "0xcbd46aedc4ddae157299bf871a6711d897a91c15b04e0ecd20cc2f163b9a36cc",
+        "arguments": {
+          "electionId": "0x0000000000000000000000000000000030b9c8b391114cdeaa89e934bb964b5f",
+          "relayer": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
+        }
+      },
+      {
+        "job_type": "publish_result",
+        "event": "ResultPublished",
+        "transaction_hash": "0x91c53a3a4f54bea642b6833d9086d461d4dd250e5acfe4c9289b1dabc870f17e",
+        "arguments": {
+          "electionId": "0x0000000000000000000000000000000030b9c8b391114cdeaa89e934bb964b5f",
+          "resultHash": "0x3079b900638b6d60549d6d6a23407838ff647152672dcb37316870a03524c0cc",
+          "relayer": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
+        }
+      }
+    ]
+  }
+}

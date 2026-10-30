@@ -66,6 +66,29 @@ The node remains on loopback for inspection. This workspace's ignored `.local/ha
 
 This checkpoint records commitments; it does not prove tally correctness, encrypted ballots, anonymous eligibility, or independent tally verification.
 
+## Live HTTP API checkpoint (roster/OTP flow)
+
+With the Hardhat node running and the manifest matching its current deployment,
+point `DATABASE_URL` at a dedicated, disposable PostgreSQL test database. From
+PowerShell at the repository root:
+
+```powershell
+$env:DATABASE_URL = '<isolated PostgreSQL URL>'
+$env:CHECKPOINT_REPORT = 'docs/checkpoint2-live-evidence-roster-otp.json'
+Push-Location blockchain
+npx hardhat run scripts/live-checkpoint.js --network localhost
+Pop-Location
+```
+
+The launcher derives the configured local relayer in memory and passes it only
+to the checkpoint child process; it never writes or prints the key. The flow
+starts the real FastAPI server and worker, imports a roster, authenticates two
+voters through OTP, submits an identical retry and a conflicting vote, and
+verifies all six publication receipts and event arguments plus `getElection`.
+It also independently compares the stored ballot commitment and result hash.
+The output JSON contains only synthetic identifiers and public chain evidence;
+it does not establish independent tally correctness or ballot privacy.
+
 ## Validation on 2026-10-31
 
 - Hardhat: 8 contract tests passed.
