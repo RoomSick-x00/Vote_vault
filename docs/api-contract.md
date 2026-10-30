@@ -98,6 +98,13 @@ A `register_election` publication job is created in the same transaction.
 `draft → open`; reopening → `409 ELECTION_NOT_DRAFT`. → `200`
 `{ "election_id", "status": "open", "opened_at" }`. Queues an `open_election` job.
 
+### 5b. Frozen configuration (organizer; for verification)
+`GET /api/v1/elections/{election_id}/configuration` → `200`
+`{ "configuration": {…snapshot…}, "canonical_json": "…", "config_hash": "0x…" }`
+The snapshot (title, candidates with chain indexes, rules) is frozen when the
+election opens; `config_hash` is what `registerElection` anchors on chain
+(`409 CONFIGURATION_NOT_FROZEN` before opening).
+
 ### 6. Submit ballot
 `POST /api/v1/elections/{election_id}/ballots` — authenticated eligible voter;
 `{ "candidate_id": "<uuid>" }` → `202` (accepted for processing; NOT proof of chain recording):

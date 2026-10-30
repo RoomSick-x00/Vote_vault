@@ -2,9 +2,13 @@
 
 Web3RegistryPublisher talks to the Hardhat local chain over HTTP, signs with the
 relayer key (LOCAL_CHAIN_SIGNER_PRIVATE_KEY — backend environment only, never
-committed, never sent to the frontend), and returns raw receipts. Event/argument
-verification happens in `app.services.publication_service`, so a fake publisher
-in tests exercises exactly the same verification code path.
+committed, never sent to the frontend), and returns raw receipts. When started
+from a deployment artifact (BLOCKCHAIN_DEPLOYMENT_FILE, written by
+blockchain/scripts/deploy.js), it validates before first use: chain id matches,
+the deployed bytecode hashes to the manifest's runtimeCodeHash, and the signer
+holds RELAYER_ROLE. Event/argument verification happens in
+`app.services.publication_service`, so a fake publisher in tests exercises
+exactly the same verification code path.
 
 The database and the chain never share a transaction; every method can fail and
 the caller records the failure and retries later.
@@ -12,8 +16,11 @@ the caller records the failure and retries later.
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Protocol
 
+from eth_utils import keccak
 from web3 import Web3
 from web3.exceptions import Web3Exception
 from web3.providers import HTTPProvider
@@ -34,6 +41,32 @@ FUNCTION_NAMES = {
 
 class ChainError(Exception):
     """Any failure submitting or reading a chain transaction."""
+
+
+def load_deployment(path_value: str) -> dict:
+    """Load a deploy.js artifact ({chainId, address, relayer, runtimeCodeHash, abi}).
+
+    Relative paths resolve against the working directory, then the backend
+    directory, then the repository root — so the default
+    `blockchain/deployments/localhost.json` works no matter where uvicorn starts.
+    """
+    raw = Path(path_value)
+    candidates = [raw] if raw.is_absolute() else [
+        Path.cwd() / raw,
+        Path(__file__).resolve().parents[2] / raw,  # backend/
+        Path(__file__).resolve().parents[3] / raw,  # repo root
+    ]
+    for candidate in candidates:
+        if candidate.is_file():
+            manifest = json.loads(candidate.read_text())
+            for key in ("address", "abi", "chainId"):
+                if key not in manifest:
+                    raise ChainError(f"deployment artifact {candidate} is missing {key!r}")
+            return manifest
+    raise ChainError(
+        f"deployment artifact not found at {path_value} (run blockchain/scripts/deploy.js "
+        "against the Hardhat node, or unset BLOCKCHAIN_DEPLOYMENT_FILE)"
+    )
 
 
 class ChainReceipt:
@@ -61,8 +94,8 @@ class UnavailablePublisher:
     def __init__(self, reason: str = "") -> None:
         self.reason = reason or (
             "blockchain publication is not configured "
-            "(set BLOCKCHAIN_RPC_URL, BALLOT_REGISTRY_CONTRACT_ADDRESS, "
-            "LOCAL_CHAIN_SIGNER_PRIVATE_KEY)"
+            "(set BLOCKCHAIN_RPC_URL, BALLOT_REGISTRY_CONTRACT_ADDRESS or "
+            "BLOCKCHAIN_DEPLOYMENT_FILE, LOCAL_CHAIN_SIGNER_PRIVATE_KEY)"
         )
 
     def submit(self, job_type: str, payload: dict) -> str:
@@ -82,6 +115,9 @@ class Web3RegistryPublisher:
         signer_private_key: str,
         chain_id: int,
         w3: Web3 | None = None,
+        abi: list | None = None,
+        expected_code_hash: str | None = None,
+        strict_deployment: bool = False,
     ) -> None:
         self._rpc_url = rpc_url
         self._contract_address = Web3.to_checksum_address(contract_address)
@@ -89,6 +125,9 @@ class Web3RegistryPublisher:
         self._account = Web3().eth.account.from_key(signer_private_key)
         self._w3: Web3 | None = w3  # injected Web3 (tests); None -> HTTPProvider
         self._chain_checked = False
+        self._abi = abi or BALLOT_REGISTRY_ABI
+        self._expected_code_hash = expected_code_hash
+        self._strict_deployment = strict_deployment
 
     def _ensure(self) -> Web3:
         if self._w3 is not None and self._chain_checked:
@@ -113,12 +152,44 @@ class Web3RegistryPublisher:
             raise
         except Exception as exc:
             raise ChainError(f"cannot read chain id from {self._rpc_url}: {exc}") from exc
+        if self._strict_deployment:
+            self._validate_deployment(w3)
         self._w3 = w3
         self._chain_checked = True
         return w3
 
+    def _validate_deployment(self, w3: Web3) -> None:
+        """Confirm the ABI is wired to the deployed contract before any call."""
+        contract = self._contract(w3)
+        code = w3.eth.get_code(contract.address)
+        if not code:
+            raise ChainError(
+                f"no bytecode at {contract.address}: deploy ElectionRegistry "
+                "(blockchain/scripts/deploy.js) before starting the backend"
+            )
+        if self._expected_code_hash:
+            actual_hash = "0x" + keccak(code).hex()
+            if actual_hash.lower() != self._expected_code_hash.lower():
+                raise ChainError(
+                    "deployed bytecode differs from the deployment manifest "
+                    f"({actual_hash} != {self._expected_code_hash}): redeploy and "
+                    "restart the backend so ABI and contract cannot diverge"
+                )
+        try:
+            relayer_role = contract.functions.RELAYER_ROLE().call()
+            if not contract.functions.hasRole(relayer_role, self._account.address).call():
+                raise ChainError(
+                    f"relayer {self._account.address} does not hold RELAYER_ROLE on "
+                    f"{contract.address}; check LOCAL_CHAIN_SIGNER_PRIVATE_KEY against "
+                    "the deployment manifest"
+                )
+        except ChainError:
+            raise
+        except Exception as exc:
+            raise ChainError(f"cannot verify RELAYER_ROLE on the registry: {exc}") from exc
+
     def _contract(self, w3: Web3):
-        return w3.eth.contract(address=self._contract_address, abi=BALLOT_REGISTRY_ABI)
+        return w3.eth.contract(address=self._contract_address, abi=self._abi)
 
     def submit(self, job_type: str, payload: dict) -> str:
         from app.services.publication_service import JOB_ARG_ORDER

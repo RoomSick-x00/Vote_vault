@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     blockchain_chain_id: int = 31337  # Hardhat network chain id
     ballot_registry_contract_address: str = ""
     local_chain_signer_private_key: str = ""  # relayer key; backend-only, never commit
+    # Deployment artifact written by blockchain/scripts/deploy.js (address + ABI +
+    # runtimeCodeHash + relayer). When set and present, the publisher loads the
+    # contract from here and validates the deployed bytecode before first use.
+    blockchain_deployment_file: str = "blockchain/deployments/localhost.json"
 
     # --- publication jobs ---
     publication_max_attempts: int = 5
@@ -63,11 +67,3 @@ class Settings(BaseSettings):
         if self.supabase_url:
             return self.supabase_url.rstrip("/") + "/auth/v1"
         return ""
-
-    @property
-    def blockchain_configured(self) -> bool:
-        return bool(
-            self.blockchain_rpc_url
-            and self.ballot_registry_contract_address
-            and self.local_chain_signer_private_key
-        )

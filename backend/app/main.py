@@ -55,7 +55,35 @@ def create_app(
     engine, session_factory = create_engine_and_sessionmaker(settings.database_url)
 
     if publisher is None:
-        if settings.blockchain_configured:
+        from app.blockchain.publisher import load_deployment
+
+        if not (settings.blockchain_rpc_url and settings.local_chain_signer_private_key):
+            publisher = UnavailablePublisher()
+        elif settings.blockchain_deployment_file:
+            # Deployment artifact (deploy.js output) is the single source of truth:
+            # contract address + ABI + bytecode hash come from it, never hardcoded.
+            try:
+                deployment = load_deployment(settings.blockchain_deployment_file)
+            except Exception as exc:  # honest startup: no silent fallback
+                publisher = UnavailablePublisher(str(exc))
+            else:
+                manifest_chain_id = int(deployment.get("chainId") or settings.blockchain_chain_id)
+                if manifest_chain_id != settings.blockchain_chain_id:
+                    publisher = UnavailablePublisher(
+                        f"deployment artifact chainId {manifest_chain_id} does not match "
+                        f"BLOCKCHAIN_CHAIN_ID {settings.blockchain_chain_id}"
+                    )
+                else:
+                    publisher = Web3RegistryPublisher(
+                        rpc_url=settings.blockchain_rpc_url,
+                        contract_address=deployment["address"],
+                        signer_private_key=settings.local_chain_signer_private_key,
+                        chain_id=settings.blockchain_chain_id,
+                        abi=deployment["abi"],
+                        expected_code_hash=deployment.get("runtimeCodeHash"),
+                        strict_deployment=True,
+                    )
+        elif settings.ballot_registry_contract_address:
             publisher = Web3RegistryPublisher(
                 rpc_url=settings.blockchain_rpc_url,
                 contract_address=settings.ballot_registry_contract_address,
