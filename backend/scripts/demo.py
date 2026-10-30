@@ -109,13 +109,15 @@ def main() -> int:
         w3=w3,
     )
     app = create_app(settings=settings, publisher=publisher, run_background_publisher=False)
+    from fake_supabase import FakeSupabaseAuth
+
+    app.state.supabase_auth = FakeSupabaseAuth(settings.supabase_jwt_secret)
 
     from fastapi.testclient import TestClient
 
     client = TestClient(app)
 
     # synthetic Supabase Auth users
-    organizer = uuid.uuid5(uuid.NAMESPACE_URL, "demo:organizer")
     voter1 = uuid.uuid5(uuid.NAMESPACE_URL, "demo:voter-1")
     voter2 = uuid.uuid5(uuid.NAMESPACE_URL, "demo:voter-2")
     outsider = uuid.uuid5(uuid.NAMESPACE_URL, "demo:outsider")
@@ -142,15 +144,27 @@ def main() -> int:
         print(f"    publication worker: {summary}")
 
     # --- the flow -----------------------------------------------------------
-    step(1, "organizer registers an organization (becomes owner/organizer)")
-    org = show(client.post("/api/v1/organizations", json={"name": "Demo Campus Club"}, headers=hdr(organizer)))
+    step(1, "organizer signs up (email, password, full name, organization name)")
+    session = show(
+        client.post(
+            "/api/v1/auth/signup",
+            json={
+                "email": "dana@democlub.edu",
+                "password": "demo-password-123",
+                "full_name": "Dana Organizer",
+                "organization_name": "Demo Campus Club",
+            },
+        )
+    )
+    organizer_token = {"Authorization": f"Bearer {session['access_token']}"}
+    org = {"organization_id": session["organizations"][0]["organization_id"]}
 
     step(2, "organizer creates a draft election")
     election = show(
         client.post(
             "/api/v1/elections",
             json={"organization_id": org["organization_id"], "title": "Demo Club President 2026"},
-            headers=hdr(organizer),
+            headers=organizer_token,
         )
     )
     election_id = election["election_id"]
@@ -160,7 +174,7 @@ def main() -> int:
         client.post(
             f"/api/v1/elections/{election_id}/candidates",
             json={"candidates": [{"name": "Alice Alpha"}, {"name": "Bob Beta"}, {"name": "Carmen Gamma"}]},
-            headers=hdr(organizer),
+            headers=organizer_token,
         )
     )
 
@@ -169,12 +183,12 @@ def main() -> int:
         client.post(
             f"/api/v1/elections/{election_id}/eligible-test-voters",
             json={"user_ids": [str(voter1), str(voter2)]},
-            headers=hdr(organizer),
+            headers=organizer_token,
         )
     )
 
     step(5, "organizer opens the election")
-    show(client.post(f"/api/v1/elections/{election_id}/open", json={}, headers=hdr(organizer)))
+    show(client.post(f"/api/v1/elections/{election_id}/open", json={}, headers=organizer_token))
     drain()  # register_election + open_election hit the chain
 
     step(6, "voter 1 submits a ballot (202 = accepted, NOT yet proven on chain)")
@@ -221,11 +235,11 @@ def main() -> int:
         json={"candidate_id": candidates["candidates"][2]["candidate_id"]},
         headers=hdr(voter2),
     )
-    show(client.post(f"/api/v1/elections/{election_id}/close", json={}, headers=hdr(organizer)))
+    show(client.post(f"/api/v1/elections/{election_id}/close", json={}, headers=organizer_token))
 
     step(12, "publication worker publishes close + the anchored result hash")
     drain()
-    pubs = client.get(f"/api/v1/elections/{election_id}/publications", headers=hdr(organizer)).json()
+    pubs = client.get(f"/api/v1/elections/{election_id}/publications", headers=organizer_token).json()
     print(f"    publications summary: {pubs['summary']}")
     for job in pubs["publications"]:
         print(
@@ -234,7 +248,7 @@ def main() -> int:
         )
 
     step(13, "backend demo tally (organizer, after close)")
-    results = show(client.get(f"/api/v1/elections/{election_id}/results", headers=hdr(organizer)))
+    results = show(client.get(f"/api/v1/elections/{election_id}/results", headers=organizer_token))
     for row in results["counts"]:
         bar = "#" * row["votes"]
         print(f"      {row['name']:<14} {row['votes']} {bar}")

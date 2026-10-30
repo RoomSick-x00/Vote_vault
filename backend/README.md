@@ -69,7 +69,7 @@ and the worker records honest failures. With `BLOCKCHAIN_RPC_URL`,
 ## Tests
 
 ```bash
-.venv/bin/python -m pytest tests/        # 51 tests
+.venv/bin/python -m pytest tests/        # 59 tests + 1 integration checkpoint
 ```
 
 Tests run against a REAL PostgreSQL (bundled `pgserver`, no root needed; or set
@@ -77,6 +77,20 @@ Tests run against a REAL PostgreSQL (bundled `pgserver`, no root needed; or set
 unique-constraint race and receipt verification are genuine. SQLite fallback:
 `VOTEVAULT_TEST_DB=sqlite`. Migrations are applied with Alembic in tests — the
 same schema path as production.
+
+`tests/test_chain_checkpoint.py` (Member 3) runs against a live Hardhat node
+and is skipped automatically when the node or its env vars are absent.
+
+## Organizer signup / login
+
+`POST /api/v1/auth/signup` (email, password, full name, organization name) and
+`POST /api/v1/auth/login` relay credentials to Supabase Auth using the public
+anon key (`SUPABASE_URL` + `SUPABASE_ANON_KEY`). The signup response is a
+Supabase session whose access token every protected endpoint already verifies;
+the backend stores only the profile (email, full name) and creates the
+organization with the signer as owner. Passwords never touch this database.
+For the demo, disable "Confirm email" in the Supabase dashboard, or signup
+returns `403 EMAIL_CONFIRMATION_REQUIRED`.
 
 ## Demo (the milestone flow)
 

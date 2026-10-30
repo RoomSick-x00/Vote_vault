@@ -14,6 +14,23 @@ ROOT = Path(__file__).resolve().parents[2]
 DEPLOYMENT = ROOT / "blockchain/deployments/localhost"
 
 
+def _chain_ready() -> bool:
+    """The checkpoint needs a live Hardhat node plus the deployment env vars;
+    in environments without them, skip instead of failing the whole suite."""
+    try:
+        Registry.from_env(DEPLOYMENT)
+        return True
+    except Exception:
+        return False
+
+
+@pytest.mark.skipif(
+    not _chain_ready(),
+    reason="requires a running Hardhat node with the deployed ElectionRegistry "
+    "and BALLOT_REGISTRY_CONTRACT_ADDRESS / BLOCKCHAIN_RPC_URL / "
+    "LOCAL_CHAIN_SIGNER_PRIVATE_KEY / BLOCKCHAIN_CHAIN_ID set (start the node, "
+    "then run: pytest tests/test_chain_checkpoint.py -v)",
+)
 def test_real_chain_checkpoint():
     registry = Registry.from_env(DEPLOYMENT)
     manifest = json.loads((DEPLOYMENT / "deployment.json").read_text())

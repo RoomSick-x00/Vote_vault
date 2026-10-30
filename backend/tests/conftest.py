@@ -74,6 +74,7 @@ def _clean_tables(sessionmaker_):
     from sqlalchemy import text
 
     table_order = [
+        "profiles",
         "publication_jobs",
         "ballots",
         "eligible_voters",
@@ -111,6 +112,16 @@ def app(database_url, sessionmaker_, fake_publisher):
         publisher=fake_publisher,
         run_background_publisher=False,
     )
+
+
+@pytest.fixture()
+def fake_supabase(app):
+    """Wire the fake auth proxy into the app (no real Supabase in tests)."""
+    from fake_supabase import FakeSupabaseAuth
+
+    client = FakeSupabaseAuth(TEST_JWT_SECRET)
+    app.state.supabase_auth = client
+    return client
 
 
 @pytest.fixture()

@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     supabase_url: str = ""
     supabase_jwks_url: str = ""
     supabase_jwt_secret: str = ""
+    # Public anon key — enables the signup/login proxy endpoints (/auth/signup, /auth/login).
+    supabase_anon_key: str = ""
 
     # --- HTTP ---
     cors_allowed_origins: str = "http://localhost:5173,http://127.0.0.1:5173"

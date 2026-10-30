@@ -96,6 +96,12 @@ def create_app(
         jwt_secret=settings.supabase_jwt_secret,
         issuer=settings.jwt_issuer,
     )
+    if settings.supabase_url and settings.supabase_anon_key:
+        from app.auth.supabase_auth import SupabaseAuthClient
+
+        app.state.supabase_auth = SupabaseAuthClient(settings.supabase_url, settings.supabase_anon_key)
+    else:
+        app.state.supabase_auth = None
 
     origins = settings.cors_origins
     if origins:

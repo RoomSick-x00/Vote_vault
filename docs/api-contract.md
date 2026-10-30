@@ -28,6 +28,38 @@ disclaimer: “backend demo tally; independent private tally verification pendin
 
 ## Endpoints
 
+### 0. Organizer signup / login (Supabase Auth proxy)
+
+The backend relays credentials to Supabase Auth with the project's public anon
+key — passwords never touch the VoteVault database and no service key is
+needed. Requires `SUPABASE_URL` + `SUPABASE_ANON_KEY`; otherwise these return
+`503 AUTH_UPSTREAM_NOT_CONFIGURED`.
+
+- `POST /api/v1/auth/signup` — creates the auth user, the organizer's profile,
+  and their organization (as `owner`) in one flow:
+
+```json
+{ "email": "dana@club.edu", "password": "min 8 chars", "full_name": "Dana Organizer", "organization_name": "Debate Club" }
+```
+→ `201`:
+```json
+{ "access_token": "<supabase jwt>", "refresh_token": "…", "token_type": "bearer", "expires_in": 3600,
+  "user": { "user_id": "<uuid>", "email": "dana@club.edu", "full_name": "Dana Organizer" },
+  "organizations": [ { "organization_id", "name", "role": "owner" } ] }
+```
+Errors: `409 EMAIL_ALREADY_REGISTERED`, `403 EMAIL_CONFIRMATION_REQUIRED`
+(Supabase project has email confirmation on — disable it for the demo or
+confirm first), `422 VALIDATION_ERROR`.
+
+- `POST /api/v1/auth/login` `{ "email", "password" }` → `200` same session shape
+  (`organizations` lists existing memberships; no org is created). Errors:
+  `401 UNAUTHENTICATED`.
+- `GET /api/v1/auth/me` (bearer) → `200`
+  `{ "user_id", "email", "full_name", "organizations": [ { "organization_id", "name", "role" } ] }`
+
+All other endpoints take `Authorization: Bearer <access_token>` from these
+responses; identity always comes from the token.
+
 ### 1. Organizations
 - `POST /api/v1/organizations` `{ "name": "..." }` → `201`
   `{ "organization_id", "name", "role": "owner", "created_at" }`
