@@ -12,6 +12,7 @@ from app.api.routes import (
     organizations,
     publications,
     results,
+    vote,
     voters,
 )
 
@@ -24,3 +25,4 @@ api_router.include_router(voters.router, prefix="/elections", tags=["elections"]
 api_router.include_router(ballots.router, prefix="/elections", tags=["ballots"])
 api_router.include_router(publications.router, prefix="/elections", tags=["publications"])
 api_router.include_router(results.router, prefix="/elections", tags=["results"])
+api_router.include_router(vote.router, tags=["voter flow"])

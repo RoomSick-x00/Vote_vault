@@ -1,8 +1,9 @@
-"""Ballots (synthetic milestone-1 model; will change for anonymous/encrypted voting).
+"""Ballots (milestone-1 model; will change for anonymous/encrypted voting).
 
 One accepted ballot per (election, voter) is enforced by the database, not just
 by application checks — the unique constraint is what makes simultaneous
-submissions safe. `nonce` and `commitment` implement the documented commitment
+submissions safe. `voter_id` references the uploaded roster (`voters.id`), not
+a Supabase account. `nonce` and `commitment` implement the documented commitment
 scheme; the ballot choice is stored in the clear in this skeleton and must be
 treated as private organizer-held data. Ballot rows are never exposed to
 organizers through the API — only aggregate counts and publication statuses are.
@@ -25,7 +26,9 @@ class Ballot(Base, IdMixin, TimestampMixin):
     election_id: Mapped[uuid.UUID] = mapped_column(
         SaUuid(), ForeignKey("elections.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    voter_id: Mapped[uuid.UUID] = mapped_column(SaUuid(), nullable=False)
+    voter_id: Mapped[uuid.UUID] = mapped_column(
+        SaUuid(), ForeignKey("voters.id"), nullable=False
+    )
     candidate_id: Mapped[uuid.UUID] = mapped_column(
         SaUuid(), ForeignKey("candidates.id"), nullable=False
     )

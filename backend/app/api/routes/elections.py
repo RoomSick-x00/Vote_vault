@@ -23,7 +23,7 @@ from app.auth.tokens import AuthUser
 from app.config import Settings
 from app.db.base import utcnow
 from app.errors import ApiError
-from app.models import Candidate, Election, EligibleVoter, PublicationJob
+from app.models import Candidate, Election, PublicationJob, Voter
 from app.schemas.elections import (
     CloseElectionOut,
     ElectionCreateIn,
@@ -45,10 +45,18 @@ def create_election(
     membership = get_membership(db, payload.organization_id, user.id)
     if membership is None or membership.role not in ("owner", "organizer"):
         raise ApiError(403, "FORBIDDEN", "Organizer role required for this organization.")
+    from app.services.voter_service import generate_election_code, validate_voter_schema
+
+    existing_codes = set(db.scalars(select(Election.code)))
     election = Election(
         organization_id=payload.organization_id,
         title=payload.title,
+        description=payload.description,
+        code=generate_election_code(existing_codes),
         status="draft",
+        voter_schema=validate_voter_schema(
+            payload.voter_schema.model_dump() if payload.voter_schema else {"identityColumns": ["rollNo"], "otpChannels": ["email"]}
+        ),
         opens_at=payload.opens_at,
         closes_at=payload.closes_at,
     )
@@ -84,11 +92,9 @@ def open_election(
     )
     if not candidate_count:
         raise ApiError(409, "ELECTION_HAS_NO_CANDIDATES", "Add at least one candidate before opening.")
-    voter_count = db.scalar(
-        select(func.count(EligibleVoter.id)).where(EligibleVoter.election_id == election.id)
-    )
+    voter_count = db.scalar(select(func.count(Voter.id)).where(Voter.election_id == election.id))
     if not voter_count:
-        raise ApiError(409, "ELECTION_HAS_NO_VOTERS", "Add at least one eligible voter before opening.")
+        raise ApiError(409, "ELECTION_HAS_NO_VOTERS", "Upload a voter roster before opening.")
 
     from app.services.configuration import freeze_configuration
     frozen = freeze_configuration(db, election)

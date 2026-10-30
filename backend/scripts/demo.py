@@ -131,6 +131,23 @@ def main() -> int:
         )
         return {"Authorization": f"Bearer {token}"}
 
+    def voter_token(code: str, roll_no: str, email: str) -> dict:
+        """identify -> OTP (dev delivery) -> verify; returns bearer headers."""
+        identify = client.post(f"/api/v1/vote/{code}/identify", json={"rollNo": roll_no}).json()
+        otp = client.post(
+            "/api/v1/vote/otp/request",
+            json={"identifyToken": identify["identifyToken"], "channel": "email", "contact": email},
+        ).json()
+        verify = client.post(
+            "/api/v1/vote/otp/verify",
+            json={"identifyToken": identify["identifyToken"], "otp": otp["devCode"]},
+        ).json()
+        return {"Authorization": f"Bearer {verify['token']}"}
+
+    def show_vote(resp, who: str) -> dict:
+        print(f"    HTTP {resp.status_code}: {resp.text[:200]}")
+        return resp.json() if resp.content else {}
+
     def show(resp) -> dict:
         print(f"    HTTP {resp.status_code}: {resp.text[:220]}")
         return resp.json() if resp.content else {}
@@ -178,11 +195,17 @@ def main() -> int:
         )
     )
 
-    step(4, "organizer adds eligible synthetic test voters")
+    step(4, "organizer uploads the voter roster (CSV; voters have no accounts)")
+    roster_csv_text = (
+        "name,rollNo,email,phone\n"
+        f"Vera One,v001,{voter1}@demo.edu,5550001\n"
+        f"Wes Two,v002,{voter2}@demo.edu,5550002\n"
+    )
+    print("    CSV:\n      " + "\n      ".join(roster_csv_text.strip().splitlines()))
     show(
         client.post(
-            f"/api/v1/elections/{election_id}/eligible-test-voters",
-            json={"user_ids": [str(voter1), str(voter2)]},
+            f"/api/v1/elections/{election_id}/voters/upload",
+            files={"file": ("roster.csv", roster_csv_text.encode(), "text/csv")},
             headers=organizer_token,
         )
     )
@@ -191,20 +214,21 @@ def main() -> int:
     show(client.post(f"/api/v1/elections/{election_id}/open", json={}, headers=organizer_token))
     drain()  # register_election + open_election hit the chain
 
-    step(6, "voter 1 submits a ballot (202 = accepted, NOT yet proven on chain)")
+    step(6, "voter 1 identifies (roll no), gets a dev OTP, and submits a ballot")
     choice = candidates["candidates"][0]["candidate_id"]
+    v1 = voter_token(election["code"], "v001", f"{voter1}@demo.edu")
     accepted = show(
         client.post(
             f"/api/v1/elections/{election_id}/ballots",
             json={"candidate_id": choice},
-            headers=hdr(voter1),
+            headers=v1,
         )
     )
 
     step(7, "publication worker publishes the ballot commitment (separate operation)")
     drain()
     rec = client.get(
-        f"/api/v1/elections/{election_id}/receipts/{accepted['receipt_id']}", headers=hdr(voter1)
+        f"/api/v1/elections/{election_id}/receipts/{accepted['receipt_id']}", headers=v1
     ).json()
     print(
         f"    receipt: status={rec['status']} commitment={rec['commitment'][:18]}... "
@@ -215,7 +239,7 @@ def main() -> int:
     retry = client.post(
         f"/api/v1/elections/{election_id}/ballots",
         json={"candidate_id": choice},
-        headers=hdr(voter1),
+        headers=v1,
     )
     print(
         f"    HTTP {retry.status_code}: receipt_id same={retry.json()['receipt_id'] == accepted['receipt_id']}"
@@ -224,16 +248,18 @@ def main() -> int:
 
     step(9, "a different second choice is rejected (original ballot stands)")
     other = candidates["candidates"][1]["candidate_id"]
-    show(client.post(f"/api/v1/elections/{election_id}/ballots", json={"candidate_id": other}, headers=hdr(voter1)))
+    show(client.post(f"/api/v1/elections/{election_id}/ballots", json={"candidate_id": other}, headers=v1))
 
-    step(10, "an ineligible (authenticated) user is rejected")
-    show(client.post(f"/api/v1/elections/{election_id}/ballots", json={"candidate_id": other}, headers=hdr(outsider)))
+    step(10, "a voter session from the roster only works in its own election")
+    outsider_session = hdr(outsider)  # Supabase token is not a voter session
+    show(client.post(f"/api/v1/elections/{election_id}/ballots", json={"candidate_id": other}, headers=outsider_session))
 
     step(11, "voter 2 votes; organizer closes the election")
+    v2 = voter_token(election["code"], "v002", f"{voter2}@demo.edu")
     client.post(
         f"/api/v1/elections/{election_id}/ballots",
         json={"candidate_id": candidates["candidates"][2]["candidate_id"]},
-        headers=hdr(voter2),
+        headers=v2,
     )
     show(client.post(f"/api/v1/elections/{election_id}/close", json={}, headers=organizer_token))
 

@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.auth.tokens import AuthUser
 from app.config import Settings
 from app.errors import ApiError
-from app.models import Election, OrgMembership
+from app.models import Election, OrgMembership, Voter
 
 _bearer = HTTPBearer(auto_error=False)
 
@@ -37,6 +37,29 @@ def get_current_user(
     if credentials is None:
         raise ApiError(401, "UNAUTHENTICATED", "Missing bearer token.")
     return request.app.state.token_verifier.verify(credentials.credentials)
+
+
+def get_voter_session(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
+    db: Session = Depends(get_db),
+) -> tuple[Voter, Election]:
+    """Voter-flow auth: backend-issued session token (scope "voter") minted after
+    OTP verification. Supabase tokens are rejected here (no voter scope), and
+    voter tokens are rejected at organizer endpoints (no `sub`)."""
+    if credentials is None:
+        raise ApiError(401, "UNAUTHENTICATED", "Missing bearer token.")
+    from app.services import voter_service
+
+    claims = voter_service.decode_scoped_token(
+        request.app.state.settings, credentials.credentials, expected_scope="voter"
+    )
+    voter = db.get(Voter, uuid.UUID(claims["vtr"]))
+    election = db.get(Election, uuid.UUID(claims["elc"]))
+    if voter is None or election is None or voter.election_id != election.id:
+        # The token references a session subject that no longer exists: auth failure.
+        raise ApiError(401, "UNAUTHENTICATED", "Voter session is no longer valid.")
+    return voter, election
 
 
 def get_election_or_404(

@@ -66,6 +66,15 @@ Never change the schema in the Supabase dashboard. Always:
 Without blockchain settings the API still works; publications report `pending`
 and the worker records honest failures.
 
+#### Voter flow (no accounts)
+
+Organizers upload the voter roster (CSV/XLSX) per election; voters identify by
+roll number/name, receive an OTP on their roster contact, and vote with a
+short-lived session token. In dev (`APP_ENV != production`) the OTP is
+returned in the API response (`devCode`) because no mail/SMS provider is
+wired — production must integrate a real sender. See
+`docs/decisions/2026-10-31-voter-roster-upload.md`.
+
 #### Blockchain mode (checkpoint 2, real chain)
 
 ```bash

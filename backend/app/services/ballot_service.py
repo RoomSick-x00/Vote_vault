@@ -25,7 +25,7 @@ from sqlalchemy.orm import Session
 from app.config import Settings
 from app.db.base import utcnow
 from app.errors import ApiError
-from app.models import Ballot, Candidate, Election, EligibleVoter, PublicationJob
+from app.models import Ballot, Candidate, Election, PublicationJob, Voter
 from app.services import publication_service
 from app.services.commitment import make_ballot_commitment
 
@@ -134,13 +134,9 @@ def _validate_submission(
     if election.closes_at is not None and now > election.closes_at:
         raise ApiError(409, "ELECTION_CLOSED", "The voting window has closed.")
 
-    eligible = db.scalars(
-        select(EligibleVoter).where(
-            EligibleVoter.election_id == election.id, EligibleVoter.user_id == voter_id
-        )
-    ).first()
-    if eligible is None:
-        raise ApiError(403, "NOT_ELIGIBLE", "You are not an eligible voter for this election.")
+    voter = db.get(Voter, voter_id)
+    if voter is None or voter.election_id != election.id:
+        raise ApiError(403, "NOT_ELIGIBLE", "You are not on the voter roster for this election.")
 
     candidate = db.get(Candidate, candidate_id)
     if candidate is None or candidate.election_id != election.id:

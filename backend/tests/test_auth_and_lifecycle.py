@@ -10,10 +10,9 @@ from helpers import (
     ORGANIZER2,
     OUTSIDER,
     TEST_JWT_SECRET,
-    VOTER1,
     add_candidates,
-    add_voters,
     auth,
+    upload_roster,
     build_open_election,
     build_ready_election,
     close_election,
@@ -72,12 +71,12 @@ def test_auth_me_returns_token_identity(client):
 # --- organizer roles ---------------------------------------------------------
 
 
-def test_voter_cannot_create_election(client):
+def test_non_organizer_cannot_create_election(client):
     org = create_organization(client, ORGANIZER)
     resp = client.post(
         "/api/v1/elections",
         json={"organization_id": org["organization_id"], "title": "Nope"},
-        headers=auth(VOTER1),
+        headers=auth(OUTSIDER),
     )
     assert resp.status_code == 403
     assert resp.json()["error"]["code"] == "FORBIDDEN"
@@ -92,7 +91,7 @@ def test_foreign_organizer_cannot_manage_election(client):
         (f"/api/v1/elections/{election_id}/open", "post"),
         (f"/api/v1/elections/{election_id}/close", "post"),
         (f"/api/v1/elections/{election_id}/candidates", "post"),
-        (f"/api/v1/elections/{election_id}/eligible-test-voters", "get"),
+        (f"/api/v1/elections/{election_id}/voters", "get"),
         (f"/api/v1/elections/{election_id}/publications", "get"),
         (f"/api/v1/elections/{election_id}/results", "get"),
     ]:
@@ -103,7 +102,7 @@ def test_foreign_organizer_cannot_manage_election(client):
 
 def test_draft_election_hidden_from_non_organizers(client):
     setup = build_ready_election(client)
-    resp = client.get(f"/api/v1/elections/{setup['election_id']}", headers=auth(VOTER1))
+    resp = client.get(f"/api/v1/elections/{setup['election_id']}", headers=auth(OUTSIDER))
     assert resp.status_code == 403
     # organizer sees it
     resp = client.get(f"/api/v1/elections/{setup['election_id']}", headers=auth(ORGANIZER))
@@ -111,11 +110,9 @@ def test_draft_election_hidden_from_non_organizers(client):
     assert resp.json()["status"] == "draft"
 
 
-def test_eligible_roster_is_organizer_only(client):
+def test_voter_roster_is_organizer_only(client):
     setup = build_open_election(client)
-    resp = client.get(
-        f"/api/v1/elections/{setup['election_id']}/eligible-test-voters", headers=auth(VOTER1)
-    )
+    resp = client.get(f"/api/v1/elections/{setup['election_id']}/voters", headers=auth(OUTSIDER))
     assert resp.status_code == 403
 
 
@@ -163,7 +160,7 @@ def test_open_requires_candidates_and_voters(client):
     assert resp.status_code == 409
     assert resp.json()["error"]["code"] == "ELECTION_HAS_NO_VOTERS"
 
-    add_voters(client, election_id, [VOTER1])
+    upload_roster(client, election_id)
     resp = client.post(f"/api/v1/elections/{election_id}/open", json={}, headers=auth(ORGANIZER))
     assert resp.status_code == 200
 

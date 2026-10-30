@@ -26,8 +26,6 @@ from app.main import create_app  # noqa: E402
 from helpers import (  # noqa: E402
     ORGANIZER,
     TEST_JWT_SECRET,
-    VOTER1,
-    VOTER2,
     auth,
     build_open_election,
     close_election,
@@ -95,18 +93,18 @@ def test_web3_publisher_publishes_and_verifies_through_full_api(
 
     setup = build_open_election(api)
     election_id = setup["election_id"]
-    b1 = vote(api, election_id, setup["candidates"][0]["candidate_id"], VOTER1)
-    b2 = vote(api, election_id, setup["candidates"][2]["candidate_id"], VOTER2)
+    b1 = vote(api, election_id, setup["candidates"][0]["candidate_id"], setup["token_for"]("R001"))
+    b2 = vote(api, election_id, setup["candidates"][2]["candidate_id"], setup["token_for"]("R002"))
     assert b1.status_code == 202 and b2.status_code == 202
     close_election(api, election_id)
 
     summary = process_publications(app)
     assert summary == {"confirmed": 6, "retry_scheduled": 0, "failed": 0}, summary
 
-    for voter, cast in ((VOTER1, b1), (VOTER2, b2)):
+    for roll_no, cast in (("R001", b1), ("R002", b2)):
         receipt = api.get(
             f"/api/v1/elections/{election_id}/receipts/{cast.json()['receipt_id']}",
-            headers=auth(voter),
+            headers={"Authorization": f"Bearer {setup['token_for'](roll_no)}"},
         ).json()
         assert receipt["status"] == "confirmed"
         assert receipt["transaction_hash"].startswith("0x")

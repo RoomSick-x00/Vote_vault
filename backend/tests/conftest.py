@@ -74,10 +74,11 @@ def _clean_tables(sessionmaker_):
     from sqlalchemy import text
 
     table_order = [
+        "voter_otp_challenges",
         "profiles",
         "publication_jobs",
         "ballots",
-        "eligible_voters",
+        "voters",
         "candidates",
         "elections",
         "org_memberships",

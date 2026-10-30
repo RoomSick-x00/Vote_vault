@@ -6,9 +6,7 @@ import uuid
 
 from helpers import (
     ORGANIZER,
-    VOTER1,
-    VOTER2,
-    VOTER3,
+    OUTSIDER,
     auth,
     build_open_election,
     close_election,
@@ -23,16 +21,21 @@ def _results(client, setup):
     return resp.json()
 
 
-def _cast(client, setup, voter, index):
-    resp = vote(client, setup["election_id"], setup["candidates"][index]["candidate_id"], voter)
+def _cast(client, setup, roll_no, index):
+    resp = vote(
+        client,
+        setup["election_id"],
+        setup["candidates"][index]["candidate_id"],
+        setup["token_for"](roll_no),
+    )
     assert resp.status_code == 202, resp.text
 
 
 def test_results_show_demo_tally_with_disclaimer(client, app):
     setup = build_open_election(client)
-    _cast(client, setup, VOTER1, 0)
-    _cast(client, setup, VOTER2, 0)
-    _cast(client, setup, VOTER3, 1)
+    _cast(client, setup, "R001", 0)
+    _cast(client, setup, "R002", 0)
+    _cast(client, setup, "R003", 1)
     close_election(client, setup["election_id"])
 
     assert client.get(f"/api/v1/elections/{setup['election_id']}/results", headers=auth(ORGANIZER)).status_code == 409
@@ -56,7 +59,7 @@ def test_results_show_demo_tally_with_disclaimer(client, app):
 
 def test_published_result_status_becomes_confirmed(client, app):
     setup = build_open_election(client)
-    _cast(client, setup, VOTER1, 2)
+    _cast(client, setup, "R001", 2)
     close_election(client, setup["election_id"])
     process_publications(app)
 
@@ -67,7 +70,7 @@ def test_published_result_status_becomes_confirmed(client, app):
 
 def test_published_result_status_failed_when_chain_is_down(client, app, fake_publisher):
     setup = build_open_election(client)
-    _cast(client, setup, VOTER1, 0)
+    _cast(client, setup, "R001", 0)
     close_election(client, setup["election_id"])
     # 5 jobs x max_attempts(3) raises: nothing ever reaches the chain
     fake_publisher.script_next("raise", "chain down", times=15)
@@ -88,7 +91,7 @@ def test_published_result_status_failed_when_chain_is_down(client, app, fake_pub
 def test_results_organizer_only(client):
     setup = build_open_election(client)
     close_election(client, setup["election_id"])
-    resp = client.get(f"/api/v1/elections/{setup['election_id']}/results", headers=auth(VOTER1))
+    resp = client.get(f"/api/v1/elections/{setup['election_id']}/results", headers=auth(OUTSIDER))
     assert resp.status_code == 403
 
 
@@ -101,8 +104,8 @@ def test_result_hash_matches_canonical_encoding(client, app):
     from eth_utils import keccak as k
 
     setup = build_open_election(client)
-    _cast(client, setup, VOTER1, 0)
-    _cast(client, setup, VOTER2, 1)
+    _cast(client, setup, "R001", 0)
+    _cast(client, setup, "R002", 1)
     close_election(client, setup["election_id"])
 
     with app.state.sessionmaker() as db:
@@ -113,7 +116,7 @@ def test_result_hash_matches_canonical_encoding(client, app):
 
     election_uuid = uuid.UUID(setup["election_id"])
     candidates = sorted(setup["candidates"], key=lambda c: c["chain_index"])
-    votes = [1, 1, 0]  # VOTER1->A, VOTER2->B
+    votes = [1, 1, 0]  # R001->A, R002->B
     packed = uuid_to_bytes32(election_uuid) + (2).to_bytes(32, "big")
     for candidate, v in zip(candidates, votes):
         packed += uuid_to_bytes32(uuid.UUID(candidate["candidate_id"])) + v.to_bytes(32, "big")

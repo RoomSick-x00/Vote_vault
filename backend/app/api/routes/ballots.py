@@ -5,10 +5,10 @@ import uuid
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, get_db, get_settings
-from app.auth.tokens import AuthUser
+from app.api.deps import get_db, get_settings, get_voter_session
 from app.config import Settings
 from app.errors import ApiError
+from app.models import Ballot, Election, Voter
 from app.schemas.ballots import BallotAcceptedOut, BallotSubmitIn, ReceiptOut
 from app.services import ballot_service, publication_service
 
@@ -19,21 +19,24 @@ router = APIRouter()
 def submit_ballot(
     election_id: uuid.UUID,
     payload: BallotSubmitIn,
-    user: AuthUser = Depends(get_current_user),
+    session: tuple[Voter, Election] = Depends(get_voter_session),
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> BallotAcceptedOut:
-    """Submit one ballot for the logged-in eligible voter.
+    """Submit one ballot as the logged-in roster voter (voter session token).
 
-    Identity comes from the token; a voter id in the body would be ignored.
-    Returns the existing receipt for an identical retry (idempotent); a second,
-    different choice is rejected. 202 means accepted for processing — it is NOT
-    proof of on-chain recording; check the receipt endpoint for that.
+    Identity comes from the token — never a body field. Returns the existing
+    receipt for an identical retry (idempotent); a second, different choice is
+    rejected. 202 means accepted for processing — it is NOT proof of on-chain
+    recording; check the receipt endpoint for that.
     """
+    voter, token_election = session
+    if token_election.id != election_id:
+        raise ApiError(403, "FORBIDDEN", "This voter session belongs to a different election.")
     submission = ballot_service.submit_ballot(
         db,
         election_id=election_id,
-        voter_id=user.id,
+        voter_id=voter.id,
         candidate_id=payload.candidate_id,
         settings=settings,
     )
@@ -46,11 +49,14 @@ def submit_ballot(
 def get_receipt(
     election_id: uuid.UUID,
     receipt_id: uuid.UUID,
-    user: AuthUser = Depends(get_current_user),
+    session: tuple[Voter, Election] = Depends(get_voter_session),
     db: Session = Depends(get_db),
 ) -> ReceiptOut:
+    voter, token_election = session
+    if token_election.id != election_id:
+        raise ApiError(403, "FORBIDDEN", "This voter session belongs to a different election.")
     ballot = publication_service.require_ballot_of_election(db, receipt_id, election_id)
-    if ballot.voter_id != user.id:
+    if ballot.voter_id != voter.id:
         raise ApiError(403, "FORBIDDEN", "Receipts are visible only to the submitting voter.")
     job = publication_service.get_ballot_job(db, ballot.id)
     if job is None:  # pragma: no cover - job is written atomically with the ballot

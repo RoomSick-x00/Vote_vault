@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     supabase_jwt_secret: str = ""
     # Public anon key — enables the signup/login proxy endpoints (/auth/signup, /auth/login).
     supabase_anon_key: str = ""
+    # Backend-issued voter session tokens (uploaded-roster voters have no Supabase
+    # account). Falls back to SUPABASE_JWT_SECRET when empty.
+    voter_session_secret: str = ""
 
     # --- HTTP ---
     cors_allowed_origins: str = "http://localhost:5173,http://127.0.0.1:5173"

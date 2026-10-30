@@ -2,18 +2,28 @@
 
 from __future__ import annotations
 
-from helpers import ORGANIZER, VOTER1, auth, build_open_election, close_election, process_publications, vote
+from helpers import ORGANIZER, auth, build_open_election, close_election, process_publications, vote
 
 
-def _submit_ballot(client, setup, voter=VOTER1, candidate_index=0) -> dict:
-    resp = vote(client, setup["election_id"], setup["candidates"][candidate_index]["candidate_id"], voter)
+def _voter_token(setup, roll_no="R001") -> str:
+    return setup["token_for"](roll_no)
+
+
+def _submit_ballot(client, setup, roll_no="R001", candidate_index=0) -> dict:
+    resp = vote(
+        client,
+        setup["election_id"],
+        setup["candidates"][candidate_index]["candidate_id"],
+        _voter_token(setup, roll_no),
+    )
     assert resp.status_code == 202, resp.text
     return resp.json()
 
 
-def _receipt(client, setup, receipt_id, voter=VOTER1) -> dict:
+def _receipt(client, setup, receipt_id, roll_no="R001") -> dict:
     resp = client.get(
-        f"/api/v1/elections/{setup['election_id']}/receipts/{receipt_id}", headers=auth(voter)
+        f"/api/v1/elections/{setup['election_id']}/receipts/{receipt_id}",
+        headers={"Authorization": f"Bearer {_voter_token(setup, roll_no)}"},
     )
     assert resp.status_code == 200, resp.text
     return resp.json()
@@ -126,7 +136,7 @@ def test_status_one_without_matching_event_is_not_confirmed(client, app, fake_pu
 
 def test_close_creates_result_jobs_and_they_confirm(client, app, fake_publisher):
     setup = build_open_election(client)
-    _submit_ballot(client, setup, VOTER1, 0)
+    _submit_ballot(client, setup, "R001", 0)
     close_election(client, setup["election_id"])
 
     summary = process_publications(app)

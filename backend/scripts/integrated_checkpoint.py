@@ -123,7 +123,7 @@ def main() -> int:
         out_hdr = {"Authorization": f"Bearer {mint_token(jwt_secret, outsider, 'outsider@checkpoint.edu')}"}
 
         # --- the flow ------------------------------------------------------
-        step("organizer: organization + election + 3 candidates + 2 eligible voters")
+        step("organizer: organization + election + 3 candidates + uploaded voter roster")
         org = httpx.post(f"{BASE}/api/v1/organizations", json={"name": "Checkpoint Club"}, headers=org_hdr).json()
         election = httpx.post(
             f"{BASE}/api/v1/elections",
@@ -131,15 +131,38 @@ def main() -> int:
             headers=org_hdr,
         ).json()
         election_id = election["election_id"]
+        election_code = election["code"]
         candidates = httpx.post(
             f"{BASE}/api/v1/elections/{election_id}/candidates",
             json={"candidates": [{"name": "Alice Alpha"}, {"name": "Bob Beta"}, {"name": "Carmen Gamma"}]},
             headers=org_hdr,
         ).json()["candidates"]
-        httpx.post(
-            f"{BASE}/api/v1/elections/{election_id}/eligible-test-voters",
-            json={"user_ids": [str(voter1), str(voter2)]}, headers=org_hdr,
+        roster_csv = (
+            "name,rollNo,email\n"
+            f"Vera One,v001,{voter1}@checkpoint.edu\n"
+            f"Wes Two,v002,{voter2}@checkpoint.edu\n"
         )
+        roster_report = httpx.post(
+            f"{BASE}/api/v1/elections/{election_id}/voters/upload",
+            files={"file": ("roster.csv", roster_csv.encode(), "text/csv")},
+            headers=org_hdr,
+        ).json()
+        assert roster_report["imported"] == 2, roster_report
+        print(f"    election code: {election_code}  roster imported: {roster_report['imported']}")
+
+        def voter_headers(roll_no: str, email: str) -> dict:
+            identify = httpx.post(
+                f"{BASE}/api/v1/vote/{election_code}/identify", json={"rollNo": roll_no}
+            ).json()
+            otp = httpx.post(
+                f"{BASE}/api/v1/vote/otp/request",
+                json={"identifyToken": identify["identifyToken"], "channel": "email", "contact": email},
+            ).json()
+            verify = httpx.post(
+                f"{BASE}/api/v1/vote/otp/verify",
+                json={"identifyToken": identify["identifyToken"], "otp": otp["devCode"]},
+            ).json()
+            return {"Authorization": f"Bearer {verify['token']}"}
 
         step("organizer opens the election; worker publishes register (with configHash) + open")
         opened = httpx.post(f"{BASE}/api/v1/elections/{election_id}/open", json={}, headers=org_hdr)
@@ -147,8 +170,10 @@ def main() -> int:
         _wait_all_confirmed(election_id, {"register_election", "open_election"}, org_hdr)
         configuration = httpx.get(f"{BASE}/api/v1/elections/{election_id}/configuration", headers=org_hdr).json()
         print(f"    config_hash on chain: {configuration['config_hash'][:26]}...")
+        v1_hdr = voter_headers("v001", f"{voter1}@checkpoint.edu")
+        v2_hdr = voter_headers("v002", f"{voter2}@checkpoint.edu")
 
-        step("voter 1 votes; duplicate + conflicting + ineligible attempts behave")
+        step("voter 1 votes; duplicate + conflicting + outsider attempts behave")
         choice_a, choice_c = candidates[0]["candidate_id"], candidates[2]["candidate_id"]
         first = httpx.post(f"{BASE}/api/v1/elections/{election_id}/ballots",
                            json={"candidate_id": choice_a}, headers=v1_hdr)
@@ -160,10 +185,11 @@ def main() -> int:
         conflict = httpx.post(f"{BASE}/api/v1/elections/{election_id}/ballots",
                               json={"candidate_id": choice_c}, headers=v1_hdr)
         assert conflict.status_code == 409 and conflict.json()["error"]["code"] == "DUPLICATE_VOTE"
-        ineligible = httpx.post(f"{BASE}/api/v1/elections/{election_id}/ballots",
-                                json={"candidate_id": choice_c}, headers=out_hdr)
-        assert ineligible.status_code == 403 and ineligible.json()["error"]["code"] == "NOT_ELIGIBLE"
-        print(f"    202 accepted (receipt {receipt_id[:8]}...), retry idempotent, 409 + 403 enforced")
+        outsider_session = {"Authorization": f"Bearer {mint_token(jwt_secret, outsider, 'o@checkpoint.edu')}"}
+        outsider_try = httpx.post(f"{BASE}/api/v1/elections/{election_id}/ballots",
+                                  json={"candidate_id": choice_c}, headers=outsider_session)
+        assert outsider_try.status_code == 401 and outsider_try.json()["error"]["code"] == "UNAUTHENTICATED"
+        print(f"    202 accepted (receipt {receipt_id[:8]}...), retry idempotent, 409 + 401 enforced")
 
         step("worker publishes the ballot commitment; receipt confirms with tx + block")
         _wait_all_confirmed(election_id, {"publish_ballot"}, org_hdr)

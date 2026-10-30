@@ -23,6 +23,7 @@ class Candidate(Base, IdMixin, TimestampMixin):
         SaUuid(), ForeignKey("elections.id", ondelete="CASCADE"), nullable=False, index=True
     )
     name: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str] = mapped_column(String(500), nullable=False, default="")
     chain_index: Mapped[int] = mapped_column(Integer(), nullable=False)
 
     __table_args__ = (

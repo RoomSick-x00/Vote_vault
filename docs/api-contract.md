@@ -85,12 +85,38 @@ A `register_election` publication job is created in the same transaction.
   (duplicate names skipped). Errors: `409 ELECTION_NOT_DRAFT`, `403 FORBIDDEN`.
 - `GET /api/v1/elections/{election_id}/candidates` → `200` (visible to anyone who can see the election)
 
-### 4. Eligible test voters
-- `POST /api/v1/elections/{election_id}/eligible-test-voters`
-  `{ "user_ids": ["<supabase user uuid>", ...] }` → `201`
-  `{ "election_id", "eligible_test_voters": [ { "user_id" } ], "added", "skipped" }`
-  (idempotent; rejected after close: `409 ELECTION_CLOSED`).
-- `GET /api/v1/elections/{election_id}/eligible-test-voters` → organizer only → `200` same roster shape.
+### 4. Voter roster (uploaded; voters have no accounts)
+Per the 2026-10-31 roster decision — elections carry `code`, `description` and
+`voterSchema = {identityColumns, otpChannels}`; the channel's column is
+mandatory in the roster.
+
+- `POST /api/v1/elections/{election_id}/voters/upload` — organizer, multipart
+  `file` (CSV/XLSX; columns name, rollNo, email, phone) → `200`
+  `{ "imported": n, "skipped": n, "errors": [ { "row", "message" } ] }`.
+  Blocked after close (`409 ELECTION_CLOSED`).
+- `GET /api/v1/elections/{election_id}/voters` — organizer only → `200`
+  `{ "voters": [ { "id", "name", "rollNo", "email", "phone", "hasVoted", "addedAt" } ], "voterCount" }`.
+- `DELETE /api/v1/elections/{election_id}/voters/{voter_id}` — organizer, draft only → `204`.
+
+### 4b. Voter flow (public, code-based; camelCase shapes)
+- `GET /api/v1/vote/{code}` → `200` `{ "id", "code", "title", "description", "status", "voterSchema" }`
+  (`404` for unknown/draft codes).
+- `POST /api/v1/vote/{code}/identify` `{ "name"?, "rollNo"? }` (schema decides which) →
+  `200` `{ "identifyToken", "channels" }`; errors: `404 VOTER_NOT_FOUND`,
+  `409 AMBIGUOUS_IDENTITY`, `409 ELECTION_NOT_OPEN`, window checks.
+- `POST /api/v1/vote/otp/request` `{ "identifyToken", "channel", "contact" }` →
+  `200` `{ "resendAfter", "expiresIn", "channel", "devCode"? }` — `devCode` only
+  outside production (no mail/SMS provider wired yet). Errors:
+  `403 CONTACT_MISMATCH`, `422` (channel disabled), `429 OTP_RESEND_TOO_SOON`.
+- `POST /api/v1/vote/otp/verify` `{ "identifyToken", "otp" }` → `200`
+  `{ "token", "session": { "election", "candidates", "voterName", "hasVoted", "receiptId" } }`;
+  errors: `401 OTP_INVALID`, `404 OTP_NOT_FOUND`, `410 OTP_EXPIRED`, `429 OTP_TOO_MANY_ATTEMPTS`.
+- `GET /api/v1/vote/session` (voter token) → `200` session shape.
+- `POST /api/v1/vote/ballot` `{ "candidateId" }` (voter token) → `202`
+  `{ "receiptId", "electionId", "candidateId", "commitment", "status", "txHash", "blockNumber", "createdAt", "confirmedAt" }`.
+- `GET /api/v1/vote/receipt` (voter token) → `200` same receipt shape.
+- `POST /elections/{id}/ballots` and `GET /elections/{id}/receipts/{receipt_id}`
+  now authenticate with the voter session token (see section 6/7 for shapes).
 
 ### 5. Open election
 `POST /api/v1/elections/{election_id}/open` — organizer. Requires ≥1 candidate

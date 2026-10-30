@@ -9,9 +9,16 @@ from app.models import Candidate, Election
 from app.schemas.common import APIModel, UtcIso, utc_input_validator
 
 
+class VoterSchemaIn(APIModel):
+    identityColumns: list[str] = Field(default_factory=lambda: ["rollNo"])
+    otpChannels: list[str] = Field(default_factory=lambda: ["email"])
+
+
 class ElectionCreateIn(APIModel):
     organization_id: uuid.UUID
     title: str = Field(min_length=1, max_length=200)
+    description: str = Field(default="", max_length=500)
+    voter_schema: VoterSchemaIn | None = None
     opens_at: datetime | None = None
     closes_at: datetime | None = None
 
@@ -21,18 +28,27 @@ class ElectionCreateIn(APIModel):
 class CandidateOut(APIModel):
     candidate_id: str
     name: str
+    description: str = ""
     chain_index: int
 
     @classmethod
     def build(cls, candidate: Candidate) -> "CandidateOut":
-        return cls(candidate_id=str(candidate.id), name=candidate.name, chain_index=candidate.chain_index)
+        return cls(
+            candidate_id=str(candidate.id),
+            name=candidate.name,
+            description=candidate.description,
+            chain_index=candidate.chain_index,
+        )
 
 
 class ElectionOut(APIModel):
     election_id: str
     organization_id: str
     title: str
+    description: str = ""
+    code: str = ""
     status: str
+    voter_schema: dict = Field(default_factory=dict)
     candidates: list[CandidateOut]
     created_at: UtcIso
     opens_at: UtcIso | None = None
@@ -46,7 +62,10 @@ class ElectionOut(APIModel):
             election_id=str(election.id),
             organization_id=str(election.organization_id),
             title=election.title,
+            description=election.description,
+            code=election.code,
             status=election.status,
+            voter_schema=election.voter_schema or {},
             candidates=[CandidateOut.build(c) for c in candidates],
             created_at=election.created_at,
             opens_at=election.opens_at,
