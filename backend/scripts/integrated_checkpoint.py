@@ -27,21 +27,51 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
+ROOT = BACKEND_DIR.parent
 sys.path.insert(0, str(BACKEND_DIR))
 
 import httpx  # noqa: E402
 import jwt as pyjwt  # noqa: E402
 from eth_utils import keccak  # noqa: E402
 from web3 import Web3  # noqa: E402
+import json  # noqa: E402
 
 LABEL = "backend demo tally; independent private tally verification pending."
 PORT = int(os.environ.get("CHECKPOINT_PORT", "8010"))
 BASE = f"http://127.0.0.1:{PORT}"
 POLL_TIMEOUT = 60
+REPORT_PATH = Path(os.environ.get("CHECKPOINT_REPORT", str(ROOT / "docs/checkpoint2-live-evidence.json")))
+REPORT: dict = {"scope": "live HTTP API + PostgreSQL + Hardhat; synthetic dev JWT users; backend demo tally only",
+                "stages": [], "result": "incomplete"}
+SECRET_VALUES: list[str] = []
+
+
+def _clean(value):
+    """Evidence stays useful but never carries tokens, keys, or codes."""
+    if isinstance(value, dict):
+        return {k: ("[REDACTED]" if k.lower() in {"nonce", "access_token", "refresh_token",
+                                            "authorization", "private_key", "password",
+                                            "devcode", "identifytoken", "token"}
+                    else _clean(v)) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_clean(v) for v in value]
+    if isinstance(value, bytes):
+        return "0x" + value.hex()
+    if isinstance(value, str):
+        for secret in SECRET_VALUES:
+            if secret:
+                value = value.replace(secret, "[REDACTED]")
+    return value
+
+
+def save_report() -> None:
+    REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    REPORT_PATH.write_text(json.dumps(_clean(REPORT), indent=2) + "\n", encoding="utf-8")
 
 
 def step(text: str) -> None:
     print(f"\n--- {text}")
+    REPORT["stages"].append({"stage": text, "at": datetime.now(timezone.utc).isoformat()})
 
 
 def wait_for(condition, description: str, timeout: float = POLL_TIMEOUT) -> None:
@@ -66,6 +96,7 @@ def main() -> int:
     relayer_key = os.environ.get("LOCAL_CHAIN_SIGNER_PRIVATE_KEY")
     if not relayer_key:
         raise SystemExit("set LOCAL_CHAIN_SIGNER_PRIVATE_KEY (the manifest's relayer account key)")
+    SECRET_VALUES.extend([relayer_key])
 
     # --- database ---------------------------------------------------------
     if os.environ.get("DATABASE_URL"):
@@ -84,6 +115,7 @@ def main() -> int:
     command.upgrade(cfg, "head")
 
     jwt_secret = "checkpoint-hs256-secret-0123456789abcdef"
+    SECRET_VALUES.append(jwt_secret)
     env = {
         **os.environ,
         "DATABASE_URL": database_url,
@@ -219,9 +251,18 @@ def main() -> int:
         _verify_on_chain(election_id, receipt, configuration, results)
         print("    getElection: state=Closed, configHash/resultCommitment match, 2 ballots on chain")
 
+        REPORT["result"] = "PASSED"
+        REPORT["election"] = {"election_id": election_id, "code": election_code,
+                              "status": status_now, "total_ballots": results["total_ballots"],
+                              "published_result_status": results["published_result_status"],
+                              "disclaimer": results["disclaimer"]}
         print(f"\n{'=' * 72}\nCHECKPOINT 2 PASSED — {LABEL}\n{'=' * 72}")
         return 0
+    except BaseException as exc:
+        REPORT["result"] = f"FAILED: {type(exc).__name__}: {exc}"
+        raise
     finally:
+        save_report()
         server.send_signal(signal.SIGINT)
         try:
             server.wait(timeout=10)
