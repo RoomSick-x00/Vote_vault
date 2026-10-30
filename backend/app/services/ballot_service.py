@@ -45,7 +45,7 @@ def submit_ballot(
     candidate_id: uuid.UUID,
     settings: Settings,
 ) -> BallotSubmission:
-    election = db.get(Election, election_id)
+    election = db.scalars(select(Election).where(Election.id == election_id).with_for_update().execution_options(populate_existing=True)).first()
     if election is None:
         raise ApiError(404, "NOT_FOUND", "Election not found.")
 
@@ -127,7 +127,7 @@ def _validate_submission(
     now = utcnow()
     if election.status == "draft":
         raise ApiError(409, "ELECTION_NOT_OPEN", "This election is not open for voting.")
-    if election.status == "closed":
+    if election.status in ("closing", "closed"):
         raise ApiError(409, "ELECTION_CLOSED", "This election is closed.")
     if election.opens_at is not None and now < election.opens_at:
         raise ApiError(409, "ELECTION_NOT_OPEN", "The voting window has not opened yet.")

@@ -2,12 +2,12 @@
 
 Eight threads submit for the same voter at the same moment. Exactly one ballot
 row may exist; identical retries all return the same receipt; conflicting
-choices yield exactly one 202 and 409 for the rest. Runs against real
-PostgreSQL (pgserver), so the race is genuine.
+choices yield exactly one 202 and 409 for the rest. Uses the configured test database (PostgreSQL preferred; SQLite fallback).
 """
 
 from __future__ import annotations
 
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 
 from sqlalchemy import select
@@ -23,7 +23,7 @@ def _ballot_count(app, election_id, voter_id) -> int:
             list(
                 db.scalars(
                     select(Ballot.id).where(
-                        Ballot.election_id == election_id, Ballot.voter_id == voter_id
+                        Ballot.election_id == uuid.UUID(str(election_id)), Ballot.voter_id == voter_id
                     )
                 )
             )

@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[2]
 DEPLOYMENT = ROOT / "blockchain/deployments/localhost"
 
 
+@pytest.mark.skipif(not os.environ.get("LOCAL_CHAIN_SIGNER_PRIVATE_KEY"), reason="requires deployed Hardhat and signer env")
 def test_real_chain_checkpoint():
     registry = Registry.from_env(DEPLOYMENT)
     manifest = json.loads((DEPLOYMENT / "deployment.json").read_text())
@@ -32,7 +33,7 @@ def test_real_chain_checkpoint():
         evidence.append({"operation": fn, "expected": expected, "receipt": status})
         return prepared, status
 
-    publish("registerElection", [election, config], "ElectionRegistered", {"electionId": election, "configurationCommitment": config})
+    publish("registerElection", [election, config], "ElectionRegistered", {"electionId": election, "configHash": config})
     publish("openElection", [election], "ElectionOpened", {"electionId": election})
     job, confirmed = publish("publishBallot", [election, ballot, commitment], "BallotPublished",
                              {"electionId": election, "ballotId": ballot, "commitment": commitment})
@@ -44,21 +45,21 @@ def test_real_chain_checkpoint():
                argument_filters={"electionId": election, "ballotId": ballot})) == 1
     with pytest.raises(ValueError, match="different commitment"):
         registry.reconcile_ballot(election, ballot, result)
-    # Even a new transaction with same ballot ID cannot publish twice.
-    with pytest.raises(Exception, match="revert"):
-        registry.prepare("publishBallot", election, ballot, commitment,
-                         nonce=registry.w3.eth.get_transaction_count(registry.account.address, "pending"))
+    # A fresh identical retry emits an acknowledgement without adding a record.
+    publish("publishBallot", [election, ballot, commitment], "BallotPublished",
+            {"electionId": election, "ballotId": ballot, "commitment": commitment})
+    assert registry.contract.functions.getElection(election).call()[3] == 1
     wrong = registry.receipt_status(job["transaction_hash"], "BallotPublished",
                                    {"electionId": election, "ballotId": ballot, "commitment": result})
     assert wrong["status"] == "failed" and wrong["reason"] == "expected_event_missing"
     publish("closeElection", [election], "ElectionClosed", {"electionId": election})
     assert registry.reconcile_ballot(election, ballot, commitment)["status"] == "confirmed"
-    publish("publishResult", [election, result], "ResultPublished", {"electionId": election, "commitment": result})
+    publish("publishResult", [election, result], "ResultPublished", {"electionId": election, "resultHash": result})
     state, stored_config, stored_result, count = registry.contract.functions.getElection(election).call()
     assert [state, Web3.to_hex(stored_config), Web3.to_hex(stored_result), count] == [3, config, result, 1]
     report = {"scope": "synthetic Web3.py service harness against real Hardhat; no HTTP/frontend/DB", "chainId": 31337,
-              "contractAddress": manifest["address"], "lostResponseRetry": "reconciled; one ballot event and count=1", "steps": evidence}
-    output = ROOT / "docs/checkpoint-evidence.json"
+              "contractAddress": manifest["address"], "lostResponseRetry": "reconciled; repeated events, one unique ballot ID and count=1", "steps": evidence}
+    output = ROOT / "docs/synthetic-chain-evidence.json"
     output.write_text(json.dumps(report, indent=2) + "\n")
 
 

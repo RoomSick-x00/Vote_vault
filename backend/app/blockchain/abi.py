@@ -8,7 +8,7 @@ BALLOT_REGISTRY_ABI: list[dict] = [
     {
         "type": "function",
         "name": "registerElection",
-        "inputs": [{"name": "electionId", "type": "bytes32", "internalType": "bytes32"}],
+        "inputs": [{"name": "electionId", "type": "bytes32", "internalType": "bytes32"}, {"name": "configHash", "type": "bytes32", "internalType": "bytes32"}],
         "outputs": [],
         "stateMutability": "nonpayable",
     },
@@ -52,6 +52,7 @@ BALLOT_REGISTRY_ABI: list[dict] = [
         "name": "ElectionRegistered",
         "inputs": [
             {"name": "electionId", "type": "bytes32", "indexed": True, "internalType": "bytes32"},
+            {"name": "configHash", "type": "bytes32", "indexed": False, "internalType": "bytes32"},
             {"name": "relayer", "type": "address", "indexed": True, "internalType": "address"},
         ],
         "anonymous": False,

@@ -35,6 +35,8 @@ def test_results_show_demo_tally_with_disclaimer(client, app):
     _cast(client, setup, VOTER3, 1)
     close_election(client, setup["election_id"])
 
+    assert client.get(f"/api/v1/elections/{setup['election_id']}/results", headers=auth(ORGANIZER)).status_code == 409
+    process_publications(app)
     body = _results(client, setup)
     assert body["tally_type"] == "demo_backend"
     assert body["total_ballots"] == 3
@@ -48,8 +50,8 @@ def test_results_show_demo_tally_with_disclaimer(client, app):
         body["disclaimer"] == "backend demo tally; independent private tally verification pending."
     )
     # before any processing: 3 ballots pending, lifecycle jobs pending too
-    assert body["publications"]["pending"] == 7
-    assert body["published_result_status"] == "pending"
+    assert body["publications"]["confirmed"] == 7
+    assert body["published_result_status"] == "confirmed"
 
 
 def test_published_result_status_becomes_confirmed(client, app):
@@ -75,11 +77,12 @@ def test_published_result_status_failed_when_chain_is_down(client, app, fake_pub
     process_publications(app)
     process_publications(app)
 
-    body = _results(client, setup)
-    assert body["published_result_status"] == "failed"
-    assert body["publications"]["failed"] == 5
-    # the tally is still shown, honestly labeled
-    assert body["total_ballots"] == 1
+    assert client.get(f"/api/v1/elections/{setup['election_id']}/results", headers=auth(ORGANIZER)).status_code == 409
+    election = client.get(f"/api/v1/elections/{setup['election_id']}", headers=auth(ORGANIZER)).json()
+    assert election["status"] == "closing" and election["closed_at"] is None
+    pubs = client.get(f"/api/v1/elections/{setup['election_id']}/publications", headers=auth(ORGANIZER)).json()
+    assert pubs["summary"] == {"failed": 1, "pending": 4, "confirmed": 0}
+    assert all(kind == "register_election" for kind, _ in fake_publisher.submit_calls)
 
 
 def test_results_organizer_only(client):

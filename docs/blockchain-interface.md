@@ -1,3 +1,5 @@
+> Historical proposal. Superseded by docs/decisions/2026-10-31-blockchain-interface.md (project-owner approved).
+
 # ElectionRegistry interface — approved for implementation
 
 Status: interface approved by the project owner in chat ("that would work"). No separate Member 2 sign-off or backend branch was supplied. Implementation follows this interface; application API adoption still requires Member 2 coordination.

@@ -15,7 +15,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, IdMixin, TimestampMixin
 
-ELECTION_STATUSES = ("draft", "open", "closed")
+ELECTION_STATUSES = ("draft", "open", "closing", "closed")
 
 
 class Election(Base, IdMixin, TimestampMixin):
@@ -33,7 +33,7 @@ class Election(Base, IdMixin, TimestampMixin):
 
     __table_args__ = (
         CheckConstraint(
-            "status IN ('draft', 'open', 'closed')",
+            "status IN ('draft', 'open', 'closing', 'closed')",
             name="status_values",
         ),
     )

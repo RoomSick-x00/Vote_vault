@@ -65,7 +65,7 @@ class OpenElectionOut(APIModel):
 class CloseElectionOut(APIModel):
     election_id: str
     status: str
-    closed_at: UtcIso
+    closed_at: UtcIso | None = None
 
 
 class CandidatesAddIn(APIModel):

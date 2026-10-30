@@ -73,10 +73,10 @@ class Registry:
 
     def receipt_status(self, tx_hash, event_name, expected):
         """Confirm only exact event arguments from this registry in a canonical receipt."""
-        schemas = {"ElectionRegistered": {"electionId", "configurationCommitment"},
+        schemas = {"ElectionRegistered": {"electionId", "configHash"},
                    "ElectionOpened": {"electionId"}, "ElectionClosed": {"electionId"},
                    "BallotPublished": {"electionId", "ballotId", "commitment"},
-                   "ResultPublished": {"electionId", "commitment"}}
+                   "ResultPublished": {"electionId", "resultHash"}}
         if event_name not in schemas or set(expected) != schemas[event_name]:
             raise ValueError("Exact event fields required")
         expected = {k: bytes32(v) for k, v in expected.items()}
@@ -110,7 +110,7 @@ class Registry:
         logs = self.contract.events.BallotPublished().get_logs(
             from_block=from_block, to_block="latest",
             argument_filters={"electionId": election_id, "ballotId": ballot_id})
-        if len(logs) != 1:
-            raise ValueError("Cannot reconcile unique ballot publication event")
+        if not logs or any(Web3.to_hex(log.args.commitment).lower() != commitment for log in logs):
+            raise ValueError("Cannot reconcile consistent ballot publication events")
         return self.receipt_status(logs[0].transactionHash, "BallotPublished",
                                    {"electionId": election_id, "ballotId": ballot_id, "commitment": commitment})

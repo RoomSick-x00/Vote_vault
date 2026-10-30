@@ -20,6 +20,7 @@ def add_candidates(
     election: Election = Depends(require_election_organizer),
     db: Session = Depends(get_db),
 ) -> CandidatesAddOut:
+    election = db.scalars(select(Election).where(Election.id == election.id).with_for_update().execution_options(populate_existing=True)).one()
     if election.status != "draft":
         raise ApiError(
             409, "ELECTION_NOT_DRAFT", "Candidates can only be added while the election is a draft."
@@ -31,12 +32,12 @@ def add_candidates(
     existing_names = set(
         db.scalars(select(Candidate.name).where(Candidate.election_id == election.id))
     )
-    next_index = (
+    last_index = (
         db.scalar(
             select(func.max(Candidate.chain_index)).where(Candidate.election_id == election.id)
         )
-        or -1
-    ) + 1
+    )
+    next_index = 0 if last_index is None else last_index + 1
 
     added = 0
     skipped = 0

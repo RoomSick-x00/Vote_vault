@@ -2,13 +2,7 @@
 
 VoteVault is a campus/club election prototype built by three teammates.
 
-**Status:** milestone-1 **backend implemented** on branch `backend/m1-skeleton`
-(FastAPI + SQLAlchemy + Alembic, Supabase Auth verification, Web3.py
-publication, 51 passing tests, end-to-end demo via `backend/scripts/demo.py`).
-Contracts/decisions in `docs/api-contract.md` and `docs/decisions/`. Frontend
-and Solidity contract are still scaffold-only. All data is synthetic; results
-are labeled “backend demo tally; independent private tally verification
-pending.”
+**Status:** the FastAPI backend and Solidity ElectionRegistry are integrated with a real local Hardhat chain. The current interface includes frozen configuration commitments, retry acknowledgements, and ordered publication with a `closing` state while accepted ballots drain. The frontend has also landed; its integration with this revised lifecycle has not yet been validated. See [the run guide](docs/local-chain.md) and [the locked interface](docs/decisions/2026-10-31-blockchain-interface.md). Results are a backend demo tally; independent tally verification is not implemented.
 
 ## Milestones
 

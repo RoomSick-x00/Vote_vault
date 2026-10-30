@@ -58,6 +58,17 @@
         "internalType": "bytes32",
         "name": "electionId",
         "type": "bytes32"
+      }
+    ],
+    "name": "ConfigurationConflict",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "electionId",
+        "type": "bytes32"
       },
       {
         "internalType": "enum ElectionRegistry.State",
@@ -109,6 +120,12 @@
         "internalType": "bytes32",
         "name": "commitment",
         "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "relayer",
+        "type": "address"
       }
     ],
     "name": "BallotPublished",
@@ -122,6 +139,12 @@
         "internalType": "bytes32",
         "name": "electionId",
         "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "relayer",
+        "type": "address"
       }
     ],
     "name": "ElectionClosed",
@@ -135,6 +158,12 @@
         "internalType": "bytes32",
         "name": "electionId",
         "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "relayer",
+        "type": "address"
       }
     ],
     "name": "ElectionOpened",
@@ -152,8 +181,14 @@
       {
         "indexed": false,
         "internalType": "bytes32",
-        "name": "configurationCommitment",
+        "name": "configHash",
         "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "relayer",
+        "type": "address"
       }
     ],
     "name": "ElectionRegistered",
@@ -171,8 +206,14 @@
       {
         "indexed": false,
         "internalType": "bytes32",
-        "name": "commitment",
+        "name": "resultHash",
         "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "relayer",
+        "type": "address"
       }
     ],
     "name": "ResultPublished",

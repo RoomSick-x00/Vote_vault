@@ -14,7 +14,7 @@ from eth_utils import keccak
 
 # Solidity event signatures from docs/decisions/2026-10-30-blockchain-interface.md
 EVENT_SIGNATURES: dict[str, str] = {
-    "register_election": "ElectionRegistered(bytes32,address)",
+    "register_election": "ElectionRegistered(bytes32,bytes32,address)",
     "open_election": "ElectionOpened(bytes32,address)",
     "publish_ballot": "BallotPublished(bytes32,bytes32,bytes32,address)",
     "close_election": "ElectionClosed(bytes32,address)",
