@@ -1,6 +1,6 @@
 # VoteVault
 
-VoteVault is a campus/club election prototype built by three teammates. This repository currently contains a directory scaffold and planning documents only. No features, dependencies, runtime configuration, or tests have been implemented or executed; the application is not claimed to run.
+VoteVault is a campus/club election prototype built by three teammates. The initial scaffold is now extended with Member 3’s local ElectionRegistry contract, Hardhat tests/deployment tooling, and Web3.py service adapter. See [the local chain guide](docs/local-chain.md). Frontend, FastAPI endpoints, authentication, database acceptance, and a full application checkpoint are still unimplemented in this checkout.
 
 ## Milestones
 
@@ -33,7 +33,7 @@ Add anonymous eligibility, encrypted ballots, and independent tally verification
 | `blockchain/` | Blockchain/integration teammate | `contracts/` for Solidity, `scripts/` for local-chain tooling, `test/` reserved for Hardhat tests. Owns Web3.py integration in coordination with the backend teammate. |
 | `docs/` | Shared | Draft API agreement in `api-contract.md`; `architecture/` for future design notes; `decisions/` for team decisions. |
 
-Empty leaf directories contain `.gitkeep` placeholders only. There are no package manifests, generated applications, migrations, contracts, or test implementations yet.
+Unimplemented areas retain `.gitkeep` placeholders. Blockchain implementation and service integration files live alongside those original placeholders; existing frontend files remain untouched.
 
 ## Environment template
 

@@ -1,0 +1,9 @@
+{
+  "chainId": 31337,
+  "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+  "admin": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+  "relayer": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+  "transactionHash": "0x09f2105eff38d1462e1898e17422f1155935a9a56f5bfcab95ec3c4e3723978d",
+  "blockNumber": 1,
+  "runtimeCodeHash": "0x69eb5bfe3f1601e8e675c4041309fadfd79cad430165a9eee95bf6f88eaa2f2c"
+}

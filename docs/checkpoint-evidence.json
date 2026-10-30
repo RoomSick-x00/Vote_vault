@@ -1,0 +1,91 @@
+{
+  "scope": "synthetic Web3.py service harness against real Hardhat; no HTTP/frontend/DB",
+  "chainId": 31337,
+  "contractAddress": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+  "lostResponseRetry": "reconciled; one ballot event and count=1",
+  "steps": [
+    {
+      "operation": "registerElection",
+      "expected": {
+        "electionId": "0x167e5b8a14b28593a662eb6028e333504c55d1abd82054b8ea1ec343db678756",
+        "configurationCommitment": "0x28448ed31164843ba00e3ffc6c6868dbce1ce7cea0d66588ffbfef180108e07e"
+      },
+      "receipt": {
+        "transaction_hash": "0x4947f0a73d51d5e9163def24da5653e699a980ad41121f0dec687459af6650a6",
+        "chain_id": 31337,
+        "contract_address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+        "block_number": 18,
+        "block_hash": "0xd43146a9030a42db1c2b05beb1b72c9640c948b2ad1cbd41dbf1b329f9d8fb41",
+        "status": "confirmed",
+        "electionId": "0x167e5b8a14b28593a662eb6028e333504c55d1abd82054b8ea1ec343db678756",
+        "configurationCommitment": "0x28448ed31164843ba00e3ffc6c6868dbce1ce7cea0d66588ffbfef180108e07e"
+      }
+    },
+    {
+      "operation": "openElection",
+      "expected": {
+        "electionId": "0x167e5b8a14b28593a662eb6028e333504c55d1abd82054b8ea1ec343db678756"
+      },
+      "receipt": {
+        "transaction_hash": "0xab710b9eaff40b2065a7878a4b43668e30949cdf58e3d0891afbb8116300ec26",
+        "chain_id": 31337,
+        "contract_address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+        "block_number": 19,
+        "block_hash": "0x5d9969af6108724f16c92b3b716b6399a14f21710c565b2f24d011051ecf383e",
+        "status": "confirmed",
+        "electionId": "0x167e5b8a14b28593a662eb6028e333504c55d1abd82054b8ea1ec343db678756"
+      }
+    },
+    {
+      "operation": "publishBallot",
+      "expected": {
+        "electionId": "0x167e5b8a14b28593a662eb6028e333504c55d1abd82054b8ea1ec343db678756",
+        "ballotId": "0xdef5957d8213679a1d0e529792f3186b6150b055e7b9535e22f1439ffb95ccf8",
+        "commitment": "0x4f8fa82d8c407a0bb1f02d704df0d30a26fe41582e59197bf257ccaed3e92de0"
+      },
+      "receipt": {
+        "transaction_hash": "0x2d6517f3318a28a0a94a73cf47b30a599d1ac6885fa45a69c85b87746ebd0f97",
+        "chain_id": 31337,
+        "contract_address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+        "block_number": 20,
+        "block_hash": "0x348807d0597a68f308e8ff7f2e2ef31128605da5088bbed0c3672ee6bed5541f",
+        "status": "confirmed",
+        "electionId": "0x167e5b8a14b28593a662eb6028e333504c55d1abd82054b8ea1ec343db678756",
+        "ballotId": "0xdef5957d8213679a1d0e529792f3186b6150b055e7b9535e22f1439ffb95ccf8",
+        "commitment": "0x4f8fa82d8c407a0bb1f02d704df0d30a26fe41582e59197bf257ccaed3e92de0"
+      }
+    },
+    {
+      "operation": "closeElection",
+      "expected": {
+        "electionId": "0x167e5b8a14b28593a662eb6028e333504c55d1abd82054b8ea1ec343db678756"
+      },
+      "receipt": {
+        "transaction_hash": "0x0ca1e9be4fb7c2511fbcfb502901e032c8d6f5bb574c291aff31e5193df59e82",
+        "chain_id": 31337,
+        "contract_address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+        "block_number": 21,
+        "block_hash": "0x8108527a3ccf76372f86134d26705fcdc985a8902d1bf8b8bb660f4b453d893d",
+        "status": "confirmed",
+        "electionId": "0x167e5b8a14b28593a662eb6028e333504c55d1abd82054b8ea1ec343db678756"
+      }
+    },
+    {
+      "operation": "publishResult",
+      "expected": {
+        "electionId": "0x167e5b8a14b28593a662eb6028e333504c55d1abd82054b8ea1ec343db678756",
+        "commitment": "0x7f55bf1d2eacedfa54b3af0027355ec57b635142cfa6901c2a21eb7d9bfbe127"
+      },
+      "receipt": {
+        "transaction_hash": "0x764bc9e49b6c46d2809f52d77989cb03faa1757453f83ed4c70c9887cbfbb2e6",
+        "chain_id": 31337,
+        "contract_address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+        "block_number": 22,
+        "block_hash": "0xa91052fae68f33e1bb2256bd3174dd115d24747211df2e20afbd57a75283f78d",
+        "status": "confirmed",
+        "electionId": "0x167e5b8a14b28593a662eb6028e333504c55d1abd82054b8ea1ec343db678756",
+        "commitment": "0x7f55bf1d2eacedfa54b3af0027355ec57b635142cfa6901c2a21eb7d9bfbe127"
+      }
+    }
+  ]
+}
