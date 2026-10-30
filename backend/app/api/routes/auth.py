@@ -94,7 +94,9 @@ def login(payload: LoginIn, request: Request, db: Session = Depends(get_db)) -> 
 
     upstream_user = session["user"]
     user_id = _user_id(upstream_user)
-    full_name = _full_name(upstream_user) or _sync_profile_on_login(db, user_id, payload.email)
+    full_name = _full_name(upstream_user)
+    synced = _sync_profile_on_login(db, user_id, payload.email, full_name or None)
+    full_name = full_name or synced
 
     return AuthSessionOut(
         access_token=session["access_token"],
@@ -135,18 +137,23 @@ def _full_name(upstream_user: dict) -> str:
     return str(metadata.get("full_name") or "").strip()
 
 
-def _sync_profile_on_login(db: Session, user_id, email: str) -> str | None:
+def _sync_profile_on_login(
+    db: Session, user_id, email: str, full_name: str | None = None
+) -> str | None:
     """Login also syncs the local profile; returns the stored full name if known."""
     profile = db.get(Profile, user_id)
     if profile is None:
-        profile = Profile(user_id=user_id, email=email, full_name=email)
+        profile = Profile(user_id=user_id, email=email, full_name=full_name or email)
         db.add(profile)
         db.commit()
-        return None
+        return full_name
     if profile.email != email:
         profile.email = email
-        db.commit()
-    return profile.full_name
+    # Backfill the name when the row only carries the email placeholder.
+    if full_name and profile.full_name in (None, "", email):
+        profile.full_name = full_name
+    db.commit()
+    return profile.full_name if profile.full_name != email else None
 
 
 def _organizations(db: Session, user_id) -> list[OrgRefOut]:
