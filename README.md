@@ -1,6 +1,14 @@
 # VoteVault
 
-VoteVault is a campus/club election prototype built by three teammates. The initial scaffold is now extended with Member 3’s local ElectionRegistry contract, Hardhat tests/deployment tooling, and Web3.py service adapter. See [the local chain guide](docs/local-chain.md). Frontend, FastAPI endpoints, authentication, database acceptance, and a full application checkpoint are still unimplemented in this checkout.
+VoteVault is a campus/club election prototype built by three teammates.
+
+**Status:** milestone-1 **backend implemented** on branch `backend/m1-skeleton`
+(FastAPI + SQLAlchemy + Alembic, Supabase Auth verification, Web3.py
+publication, 51 passing tests, end-to-end demo via `backend/scripts/demo.py`).
+Contracts/decisions in `docs/api-contract.md` and `docs/decisions/`. Frontend
+and Solidity contract are still scaffold-only. All data is synthetic; results
+are labeled “backend demo tally; independent private tally verification
+pending.”
 
 ## Milestones
 
@@ -33,11 +41,15 @@ Add anonymous eligibility, encrypted ballots, and independent tally verification
 | `blockchain/` | Blockchain/integration teammate | `contracts/` for Solidity, `scripts/` for local-chain tooling, `test/` reserved for Hardhat tests. Owns Web3.py integration in coordination with the backend teammate. |
 | `docs/` | Shared | Draft API agreement in `api-contract.md`; `architecture/` for future design notes; `decisions/` for team decisions. |
 
-Unimplemented areas retain `.gitkeep` placeholders. Blockchain implementation and service integration files live alongside those original placeholders; existing frontend files remain untouched.
+Empty leaf directories contain `.gitkeep` placeholders only. There are no package manifests, generated applications, migrations, contracts, or test implementations yet.
 
 ## Environment template
 
-`.env.example` is an inventory of proposed variable names only, not a loadable environment configuration. Values, exact naming, and per-service configuration will be agreed during implementation. Never put real credentials in this template. Browser configuration may use only public Supabase settings; database credentials and the local signer key belong exclusively to backend/integration processes.
+`.env.example` (root) is an inventory of variable names; `backend/.env.example`
+is the backend's authoritative template with setup notes. Never put real
+credentials in any template. Browser configuration may use only public Supabase
+settings; database credentials and the local signer key belong exclusively to
+backend/integration processes.
 
 ## Team decisions before implementation
 

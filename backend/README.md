@@ -1,0 +1,129 @@
+# VoteVault Backend (milestone 1)
+
+FastAPI + SQLAlchemy 2 + Alembic on Supabase PostgreSQL, Supabase Auth JWT
+verification, and Web3.py publication of ballot commitments to the local
+Hardhat chain (`BallotRegistry`, chain id 31337).
+
+**Scope label: “backend demo tally; independent private tally verification pending.”**
+This is a synthetic-data skeleton: identified test voters, plaintext choices in
+the database (private to the backend), commitments on chain, and a
+backend-computed demo tally. It does NOT provide anonymous eligibility,
+encrypted ballots, or independent verification of the tally. The ballot model
+will change in milestone 2.
+
+## Layout
+
+```
+app/
+  api/routes/      endpoint handlers (elections, candidates, voters, ballots, publications, results)
+  api/deps.py      auth + organizer/visibility dependencies
+  auth/            Supabase JWT verification (RS256 via JWKS, or HS256 secret for dev)
+  models/          SQLAlchemy models (7 tables)
+  schemas/         Pydantic request/response shapes
+  services/        ballot rules, commitment scheme, publication queue, tally
+  blockchain/      BallotRegistry ABI + Web3 publisher
+  db/              base/session
+  eth_events.py    event log verification (topics/data equality)
+alembic/           migrations (the ONLY way the schema changes)
+scripts/demo.py    end-to-end demo of the whole milestone flow
+tests/             pytest suite (real PostgreSQL via pgserver; py-evm chain)
+```
+
+## Setup
+
+```bash
+cd backend
+uv venv --python python3 .venv
+uv pip install --python .venv/bin/python -e .          # runtime deps
+uv pip install --python .venv/bin/python pytest pgserver "eth-tester[py-evm]"  # dev/test
+cp .env.example .env                                    # fill in your values
+```
+
+Environment variables: see `.env.example`. Database and auth come from your
+Supabase project; the relayer key stays in the backend environment only.
+
+### Database migrations
+
+Never change the schema in the Supabase dashboard. Always:
+
+```bash
+# apply (uses DATABASE_URL from .env / environment)
+.venv/bin/alembic upgrade head
+
+# create a new migration after editing app/models/
+.venv/bin/alembic revision --autogenerate -m "message"
+```
+
+### Run
+
+```bash
+.venv/bin/uvicorn app.main:app --reload --port 8000
+# docs at http://127.0.0.1:8000/docs
+```
+
+Without blockchain settings the API still works; publications report `pending`
+and the worker records honest failures. With `BLOCKCHAIN_RPC_URL`,
+`BALLOT_REGISTRY_CONTRACT_ADDRESS`, and `LOCAL_CHAIN_SIGNER_PRIVATE_KEY` set
+(against Member 3's Hardhat node), jobs confirm for real.
+
+## Tests
+
+```bash
+.venv/bin/python -m pytest tests/        # 51 tests
+```
+
+Tests run against a REAL PostgreSQL (bundled `pgserver`, no root needed; or set
+`VOTEVAULT_TEST_DATABASE_URL`) and a REAL EVM (py-evm via eth-tester), so the
+unique-constraint race and receipt verification are genuine. SQLite fallback:
+`VOTEVAULT_TEST_DB=sqlite`. Migrations are applied with Alembic in tests — the
+same schema path as production.
+
+## Demo (the milestone flow)
+
+```bash
+.venv/bin/python scripts/demo.py
+```
+
+Shows: organizer creates an election → adds three candidates and eligible test
+users → opens it → one voter votes → duplicate and ineligible attempts fail →
+commitments confirm on a real EVM → organizer closes → backend demo tally
+appears — ending with the label:
+
+> backend demo tally; independent private tally verification pending.
+
+## API summary (`/api/v1`, full shapes in `docs/api-contract.md`)
+
+| Method & path | Who | Purpose |
+| --- | --- | --- |
+| `POST /organizations` | any user | found org, becomes owner |
+| `GET /organizations` | any user | own memberships |
+| `POST /elections` | org organizer | create draft election (+ register job) |
+| `GET /elections/{id}` | organizer (draft) / any user (open, closed) | election + candidates |
+| `POST /elections/{id}/candidates` | organizer | add candidates (draft only) |
+| `POST /elections/{id}/eligible-test-voters` | organizer | add eligible synthetic users |
+| `GET /elections/{id}/eligible-test-voters` | organizer | roster (organizer-only) |
+| `POST /elections/{id}/open` | organizer | draft → open (requires candidates + voters) |
+| `POST /elections/{id}/ballots` | eligible voter | submit ballot; `202` accepted; idempotent retry |
+| `GET /elections/{id}/receipts/{receipt_id}` | submitting voter | receipt + publication status |
+| `GET /elections/{id}/publications` | organizer | all publication jobs |
+| `POST /elections/{id}/publications/retry` | organizer | requeue + process now |
+| `POST /elections/{id}/close` | organizer | open → closed (idempotent), queues result publication |
+| `GET /elections/{id}/results` | organizer (after close) | demo tally + disclaimer |
+
+Error shape everywhere: `{"error": {"code": "...", "message": "..."}}`.
+
+## Guarantees implemented
+
+- One ballot per voter per election via a **database unique constraint**
+  (`uq_ballots_election_voter`) inside one transaction; concurrent duplicates
+  resolve to exactly one stored ballot — identical retries return the existing
+  receipt, different choices get `409 DUPLICATE_VOTE`.
+- Ballot + `publish_ballot` job written **atomically**; chain submission is a
+  separate retrying operation. Statuses are exactly `pending` / `confirmed` /
+  `failed`; `confirmed` requires receipt status 1 **and** the matching event
+  args on chain id 31337.
+- Commitment encoding (fixed, see `docs/decisions/2026-10-30-blockchain-interface.md`):
+  `keccak256("VV1" ‖ 0x00 ‖ electionId(bytes32) ‖ 0x00 ‖ uint256 candidateChainIndex ‖ 0x00 ‖ nonce32)`,
+  with UUID ids left-padded to bytes32 (`bytes32(uint256(uint128(bytes16(uuid))))`).
+- Ballot rows, eligible rosters, and receipts are never exposed to organizers
+  or other voters; identity always comes from the verified JWT, never a body field.
