@@ -64,9 +64,30 @@ Never change the schema in the Supabase dashboard. Always:
 ```
 
 Without blockchain settings the API still works; publications report `pending`
-and the worker records honest failures. With `BLOCKCHAIN_RPC_URL`,
-`BALLOT_REGISTRY_CONTRACT_ADDRESS`, and `LOCAL_CHAIN_SIGNER_PRIVATE_KEY` set
-(against Member 3's Hardhat node), jobs confirm for real.
+and the worker records honest failures.
+
+#### Blockchain mode (checkpoint 2, real chain)
+
+```bash
+# 1) from blockchain/:  npx hardhat node                            # terminal 1
+#    npx hardhat run scripts/deploy.js --network localhost          # writes deployments/localhost.json
+# 2) backend .env:
+#    BLOCKCHAIN_RPC_URL=http://127.0.0.1:8545
+#    BLOCKCHAIN_CHAIN_ID=31337
+#    BLOCKCHAIN_DEPLOYMENT_FILE=blockchain/deployments/localhost.json
+#    LOCAL_CHAIN_SIGNER_PRIVATE_KEY=<the manifest relayer key>
+.venv/bin/uvicorn app.main:app --port 8000
+```
+
+The publisher loads contract address, ABI, and bytecode hash from the
+deployment artifact and refuses to run against a stale or altered deployment
+(chain id, runtime code hash, and RELAYER_ROLE are validated before the first
+call). Re-run `deploy.js` then restart the backend whenever the contract
+changes. Full integrated checkpoint:
+
+```bash
+.venv/bin/python scripts/integrated_checkpoint.py   # node + relayer key env set
+```
 
 ## Tests
 
