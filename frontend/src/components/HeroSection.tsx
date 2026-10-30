@@ -54,7 +54,7 @@ export default function HeroSection() {
           </motion.h1>
 
           <motion.p variants={item} className="mt-6 max-w-lg text-[15px] leading-relaxed text-ash md:text-base">
-            Run campus and community elections end to end. Upload your voter list, share a code or QR, verify each voter by OTP, and publish tamper-evident results with a receipt every voter can check.
+            Run campus and community elections end to end. Whitelist your voters, share the election link, and publish tamper-evident results on-chain with a cryptographic receipt every voter can keep.
           </motion.p>
 
           {/* Primary Portal Navigation Links */}

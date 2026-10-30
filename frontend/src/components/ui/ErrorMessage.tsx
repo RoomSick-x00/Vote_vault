@@ -26,11 +26,6 @@ export function ErrorMessage({ error, onRetry, className = '' }: ErrorMessagePro
             </span>
           </div>
           <p className="mt-1 text-sm leading-relaxed text-red-200/90">{errorObj.message}</p>
-          {errorObj.details && (
-            <pre className="mt-2 max-h-32 overflow-auto rounded bg-black/40 p-2 font-mono text-[10px] text-red-300">
-              {JSON.stringify(errorObj.details, null, 2)}
-            </pre>
-          )}
         </div>
         {onRetry && (
           <button

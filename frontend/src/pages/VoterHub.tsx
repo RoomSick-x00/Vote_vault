@@ -1,22 +1,23 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowRight, Keyboard, QrCode, Vote } from 'lucide-react'
+import { ArrowRight, Vote } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { ErrorMessage } from '../components/ui/ErrorMessage'
-import QrScanner from '../components/QrScanner'
-import { extractElectionCode } from '../lib/code'
+import { extractElectionId, isElectionId } from '../lib/code'
 
+/**
+ * Voter entry point. Elections are addressed by their UUID in this milestone —
+ * paste the election ID or the full /vote/<id> link an organizer shared.
+ */
 export default function VoterHub() {
   const navigate = useNavigate()
-  const [mode, setMode] = useState<'code' | 'scan'>('code')
-  const [code, setCode] = useState('')
+  const [electionId, setElectionId] = useState('')
   const [error, setError] = useState<string | null>(null)
 
-  const join = (value: string) => {
-    const clean = extractElectionCode(value)
-    if (clean.length < 4) {
-      setError('Enter a valid election code.')
-      setMode('code')
+  const join = () => {
+    const clean = extractElectionId(electionId)
+    if (!isElectionId(clean)) {
+      setError('Enter a valid election ID (the link or UUID your organizer shared).')
       return
     }
     navigate(`/vote/${clean}`)
@@ -31,76 +32,43 @@ export default function VoterHub() {
           </div>
           <div>
             <h1 className="font-display text-2xl font-bold text-paper">Voter Hub</h1>
-            <p className="text-xs text-ash">Join an election with its code or QR.</p>
+            <p className="text-xs text-ash">Open an election with its link or ID.</p>
           </div>
-        </div>
-
-        <div className="mt-6 grid grid-cols-2 gap-1 rounded-xl bg-obsidian p-1">
-          <button
-            type="button"
-            onClick={() => {
-              setError(null)
-              setMode('code')
-            }}
-            className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2 font-mono text-xs font-semibold transition ${
-              mode === 'code' ? 'bg-electric text-obsidian' : 'text-ash hover:text-paper'
-            }`}
-          >
-            <Keyboard className="h-3.5 w-3.5" />
-            Enter code
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setError(null)
-              setMode('scan')
-            }}
-            className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2 font-mono text-xs font-semibold transition ${
-              mode === 'scan' ? 'bg-electric text-obsidian' : 'text-ash hover:text-paper'
-            }`}
-          >
-            <QrCode className="h-3.5 w-3.5" />
-            Scan QR
-          </button>
         </div>
 
         {error && <ErrorMessage error={error} className="mt-5" />}
 
-        {mode === 'code' ? (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault()
-              join(code)
-            }}
-            className="mt-6 space-y-4"
-          >
-            <div>
-              <label htmlFor="election-code" className="block font-mono text-[11px] tracking-wide text-ash">
-                ELECTION CODE
-              </label>
-              <input
-                id="election-code"
-                value={code}
-                onChange={(e) => setCode(e.target.value.toUpperCase())}
-                autoCapitalize="characters"
-                autoComplete="off"
-                spellCheck={false}
-                maxLength={32}
-                placeholder="e.g. K7M2QX"
-                className="mt-1.5 w-full rounded-xl border border-white/15 bg-obsidian px-4 py-3 text-center font-mono text-2xl font-bold tracking-[0.3em] text-paper placeholder:text-ash/30 focus:border-electric focus:outline-none"
-              />
-            </div>
-            <Button type="submit" size="lg" className="w-full" disabled={!code.trim()}>
-              Continue
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          </form>
-        ) : (
-          <div className="mt-6 space-y-3">
-            <QrScanner onDetect={join} onError={setError} />
-            <p className="text-center text-xs text-ash">Point your camera at the election QR code.</p>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            join()
+          }}
+          className="mt-6 space-y-4"
+        >
+          <div>
+            <label htmlFor="election-id" className="block font-mono text-[11px] tracking-wide text-ash">
+              ELECTION ID OR LINK
+            </label>
+            <input
+              id="election-id"
+              value={electionId}
+              onChange={(e) => setElectionId(e.target.value)}
+              autoComplete="off"
+              spellCheck={false}
+              placeholder="00000000-0000-0000-0000-000000000000"
+              className="mt-1.5 w-full rounded-xl border border-white/15 bg-obsidian px-4 py-3 font-mono text-sm text-paper placeholder:text-ash/30 focus:border-electric focus:outline-none"
+            />
           </div>
-        )}
+          <Button type="submit" size="lg" className="w-full" disabled={!electionId.trim()}>
+            Continue
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        </form>
+
+        <p className="mt-6 text-center text-xs text-ash">
+          You will sign in with your VoteVault account — only voters on the organizer's eligible roster can cast a
+          ballot.
+        </p>
       </div>
     </div>
   )

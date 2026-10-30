@@ -6,13 +6,22 @@ interface AuthContextValue {
   user: Organizer | null
   loading: boolean
   sessionExpired: boolean
-  register: (payload: { name: string; email: string; password: string; organization?: string }) => Promise<Organizer>
+  signup: (payload: {
+    email: string
+    password: string
+    full_name: string
+    organization_name: string
+  }) => Promise<Organizer>
   login: (email: string, password: string) => Promise<Organizer>
-  logout: () => Promise<void>
+  logout: () => void
   clearSessionExpired: () => void
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
+
+function toOrganizer(me: { user_id: string; email: string; full_name: string; organizations: Organizer['organizations'] }): Organizer {
+  return { user_id: me.user_id, email: me.email, full_name: me.full_name, organizations: me.organizations }
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<Organizer | null>(null)
@@ -24,7 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (getOrganizerToken()) {
       api
         .getMe()
-        .then((me) => active && setUser(me))
+        .then((me) => active && me && setUser(toOrganizer(me)))
         .finally(() => active && setLoading(false))
     }
 
@@ -39,30 +48,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const register = useCallback<AuthContextValue['register']>(async (payload) => {
+  const signup = useCallback<AuthContextValue['signup']>(async (payload) => {
     setSessionExpired(false)
-    const session = await api.register(payload)
-    setUser(session.user)
-    return session.user
+    const session = await api.signup(payload)
+    const organizer = toOrganizer({ ...session.user, organizations: session.organizations })
+    setUser(organizer)
+    return organizer
   }, [])
 
   const login = useCallback<AuthContextValue['login']>(async (email, password) => {
     setSessionExpired(false)
     const session = await api.login(email, password)
-    setUser(session.user)
-    return session.user
+    const organizer = toOrganizer({ ...session.user, organizations: session.organizations })
+    setUser(organizer)
+    return organizer
   }, [])
 
-  const logout = useCallback(async () => {
-    await api.logout()
+  const logout = useCallback(() => {
+    api.logout()
     setUser(null)
   }, [])
 
   const clearSessionExpired = useCallback(() => setSessionExpired(false), [])
 
   const value = useMemo(
-    () => ({ user, loading, sessionExpired, register, login, logout, clearSessionExpired }),
-    [user, loading, sessionExpired, register, login, logout, clearSessionExpired]
+    () => ({ user, loading, sessionExpired, signup, login, logout, clearSessionExpired }),
+    [user, loading, sessionExpired, signup, login, logout, clearSessionExpired]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
