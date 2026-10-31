@@ -84,7 +84,7 @@ def test_vote_after_close_rejected(client):
 
 def _election_with_window(client, *, opens_at=None, closes_at=None):
     org = create_organization(client, ORGANIZER)
-    body = {"organization_id": org["organization_id"], "title": "Windowed"}
+    body = {"organization_id": org["organization_id"], "title": "Windowed", "voter_schema": {"identityColumns": ["rollNo"], "otpChannels": ["email"]}}
     if opens_at:
         body["opens_at"] = opens_at
     if closes_at:

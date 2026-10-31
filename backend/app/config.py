@@ -30,6 +30,21 @@ class Settings(BaseSettings):
     # account). Falls back to SUPABASE_JWT_SECRET when empty.
     voter_session_secret: str = ""
 
+    # Development codes are shown only when explicitly using the development
+    # provider and APP_ENV is not production. Configure real providers per channel.
+    otp_email_provider: str = "development"
+    otp_phone_provider: str = "development"
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""
+    smtp_security: str = "starttls"  # starttls or ssl
+    twilio_account_sid: str = ""
+    twilio_auth_token: str = ""
+    twilio_from_number: str = ""
+    twilio_verify_service_sid: str = ""
+
     # --- HTTP ---
     cors_allowed_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 

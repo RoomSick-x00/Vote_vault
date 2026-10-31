@@ -17,6 +17,7 @@ import VoterHub from './pages/VoterHub'
 import VoterSession from './pages/VoterSession'
 import ReceiptScreen from './pages/ReceiptScreen'
 import ResultsAudit from './pages/ResultsAudit'
+import AuditExplorer from './pages/AuditExplorer'
 import { useUIStore } from './store/ui'
 
 export default function App() {
@@ -56,6 +57,8 @@ export default function App() {
               <Route path="/voter" element={<VoterHub />} />
               <Route path="/vote/:electionId" element={<VoterSession />} />
               <Route path="/receipt/:electionId/:receiptId" element={<ReceiptScreen />} />
+              <Route path="/audit" element={<AuditExplorer />} />
+              <Route path="/audit/:id" element={<AuditExplorer />} />
               <Route path="/results/:id" element={<ResultsAudit />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
@@ -63,7 +66,7 @@ export default function App() {
         </main>
 
         <footer className="relative z-10 border-t border-white/10 bg-obsidian/80 py-5 text-center font-mono text-[11px] text-ash">
-          © {new Date().getFullYear()} VoteVault · Secret ballots, verifiable results
+          © {new Date().getFullYear()} VoteVault · Record integrity and inclusion checks
         </footer>
       </div>
     </AuthProvider>

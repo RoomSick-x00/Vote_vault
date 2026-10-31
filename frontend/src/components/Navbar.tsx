@@ -57,6 +57,7 @@ export default function Navbar() {
               <Vote className="h-3.5 w-3.5" />
               Voter Hub
             </Link>
+            <Link to="/audit" className={link(location.pathname.startsWith('/audit'))}>Audit Explorer</Link>
             {user && (
               <Link to="/organizer/create" className={link(location.pathname === '/organizer/create', 'saffron')}>
                 <PlusCircle className="h-3.5 w-3.5" />
@@ -115,6 +116,7 @@ export default function Navbar() {
             { to: '/organizer', label: 'Organiser dashboard' },
             ...(user ? [{ to: '/organizer/create', label: 'Create election' }] : []),
             { to: '/voter', label: 'Voter Hub' },
+            { to: '/audit', label: 'Audit Explorer' },
           ].map((l) => (
             <Link
               key={l.to}

@@ -1,0 +1,10 @@
+PASS: archive.structure: Archive members, hashes, and event chain are structurally complete.
+PASS: receipt.inclusion: Receipt tracker appears in the accepted raw ballot set.
+PASS: result.announced: Announced result equals the tally in the verified archive.
+PASS: belenios.proofs: Official Belenios verifier reports all checks passed for the completed archive.
+PASS: chain.archive: Exact public archive bytes match the sealed chain commitment.
+PASS: chain.configuration: Belenios election and trustee data match frozen chain configuration.
+PASS: chain.credentials: Belenios credential set matches frozen chain commitment.
+PASS: chain.ballot_count: All 1 accepted archive ballots are accounted for.
+PASS: chain.ballots: Every raw ballot and credential tag matches its anchored chain record.
+PASS: independent Belenios election verification

@@ -9,6 +9,7 @@ for the rest.
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
+import uuid
 
 from sqlalchemy import select
 
@@ -23,7 +24,7 @@ def _ballot_count(app, election_id, voter_id) -> int:
             list(
                 db.scalars(
                     select(Ballot.id).where(
-                        Ballot.election_id == election_id, Ballot.voter_id == voter_id
+                        Ballot.election_id == uuid.UUID(election_id), Ballot.voter_id == voter_id
                     )
                 )
             )
@@ -40,7 +41,7 @@ def _voter_uuid(app, setup, roll_no: str):
 
     with app.state.sessionmaker() as db:
         voter = db.scalars(
-            select(Voter).where(Voter.election_id == setup["election_id"], Voter.roll_no == roll_no)
+            select(Voter).where(Voter.election_id == uuid.UUID(setup["election_id"]), Voter.roll_no == roll_no)
         ).one()
         return voter.id
 

@@ -84,7 +84,7 @@ export default function PublicationsPanel({ electionId, refreshKey = 0 }: Public
         <div>
           <h2 className="font-display text-lg font-bold text-paper">Blockchain publications</h2>
           <p className="mt-0.5 font-mono text-[10px] text-ash">
-            Local Hardhat chain · every job is receipt-verified on chain id 31337
+            Publication jobs are checked against transaction receipts on the configured chain.
           </p>
         </div>
         <div className="flex items-center gap-3">

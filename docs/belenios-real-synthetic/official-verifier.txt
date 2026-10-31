@@ -1,0 +1,4 @@
+I: using directory .
+I: fingerprint of encrypted tally is 0k/jp41P1AwWmgfdWznrh6kWcG1PzP6bA+wqMCUrphQ
+I: no shuffles to check
+I: all checks passed

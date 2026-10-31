@@ -108,7 +108,7 @@ export default function ReceiptScreen() {
 
       <div className="mt-8 flex justify-between">
         <Link to="/voter"><Button variant="secondary"><ArrowLeft className="h-4 w-4" /> Voter Hub</Button></Link>
-        <Link to={`/results/${electionId}`}><Button>Election results</Button></Link>
+        <Link to={`/audit/${electionId}`}><Button>Inspect election records</Button></Link>
       </div>
     </div>
   )

@@ -1,0 +1,15 @@
+{
+  "version": "VV_BELENIOS_ANCHOR_1",
+  "election_id": "0x2a9cee90746de4855095afbf034be440726131d1876364102570ad61eb6672ba",
+  "configuration_hash": "0x69983ccfa55a20b5be9a4f348bfd3e1a7d15d2527e776512ba8984389a457d64",
+  "credentials_hash": "0xa8bc9392da562d19b430602fbe35627e9714ffa64cb3032929b2ffc4f79b3cb5",
+  "archive_hash": "0x421f7399a950e2aa7d5f341c05265af1424d74edd9e4339e587c50262e21f8f5",
+  "ballot_count": 1,
+  "ballots": [
+    {
+      "ballot_id": "0xd1cb116dbcc416b600099a382fac87a18dccc2fb14182a1347b64ce033e4f870",
+      "ballot_hash": "0xd1cb116dbcc416b600099a382fac87a18dccc2fb14182a1347b64ce033e4f870",
+      "credential_tag": "0x0e56f491c0752cc3c0858a61d94b6f0d6eab10a51bfbf574920da26c32131c87"
+    }
+  ]
+}

@@ -191,7 +191,7 @@ export default function LoadingScreen({ onComplete }: { onComplete: () => void }
       >
         {complete && <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-india" />}
         <span className={complete ? 'text-paper/80' : undefined}>
-          {complete ? 'SECURE ENVIRONMENT READY' : 'INITIALISING SECURE ENVIRONMENT'}
+          {complete ? 'VOTING INTERFACE READY' : 'LOADING VOTING INTERFACE'}
         </span>
       </motion.p>
     </motion.div>

@@ -24,7 +24,7 @@ const item: Variants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.75, ease: [0.22, 1, 0.36, 1] } },
 }
 
-const TRUST_POINTS = ['Secret Ballots', 'Tamper-Evident Records', 'Verifiable Results']
+const TRUST_POINTS = ['Voter Verification', 'Tamper-Evident Records', 'Public Commitments']
 
 export default function HeroSection() {
   const appReady = useUIStore((s) => s.appReady)

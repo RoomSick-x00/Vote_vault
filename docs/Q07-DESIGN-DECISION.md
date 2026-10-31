@@ -1,0 +1,37 @@
+# Question 07 design decision (time-boxed)
+
+Date: 2026-10-31. Decision: **keep Belenios 3.3.0 as the candidate verification core for the synthetic prototype; do not claim the product integration or Question 07 is complete.** The available pristine election is a real Belenios archive and the saved official verifier run says `I: all checks passed`. The exact bytes are anchored in a local Hardhat instance and the standalone adapter reports PASS. But the required attack suite is currently blocked by a non-identical tar writer, so this is a provisional engineering choice, not a security certification.
+
+## Evidence and tradeoffs
+
+### Fresh Windows demo effort
+
+A fresh-machine end-to-end reproduction is **not measured**. The checked-in demo requires Windows, WSL Ubuntu, Python/Node dependencies, a Belenios OCaml CLI executable inside WSL, a running Hardhat node, a deployment/reference, and the standalone Python verification invocation. The docs say the previous `/tmp` tool build was cleared and a persistent CLI exists in the current WSL instance. This machine’s saved verifier record is not evidence a judge can build the OCaml tool quickly from scratch. So reproducible setup time is **unknown**, and the current fresh Windows judge demo is not proven. The honest fallback trigger (“cannot demo reliably within reasonable time”) has not been evaluated on a fresh machine; no elapsed setup measurement exists. Before a judge-facing claim, measure a clean WSL install/build with a timer and preserve logs.
+
+### Browser ballot creation and credentials
+
+Current VoteVault browser workflow is not connected to Belenios. The smallest real integration is to embed/use Belenios’s supported browser voting flow (the project’s browser crypto/client) against a Belenios-compatible server, issue the generated voter credential through a separate registrar workflow, and export the actual accepted `.bel` archive and public result for the standalone verifier. Do not invent a new ballot format or call a server-generated fake ballot a proof. The current standalone CLI artifacts do not demonstrate browser ballot creation or web-app credential issuance. **Unproven.**
+
+### First vote only
+
+Belenios’s normal policy permits revoting/replacement. Its official verifier therefore cannot establish first-vote-only by itself. The prototype parser rejects two raw ballots with the same credential and `PrivateElectionArchive` rejects a second public credential tag, but these are policy checks outside Belenios’s proof verifier. The existing real duplicate archive is a useful fixture; a live second-submission path through the app has not been evidenced. Enforcement is incomplete until the accepted-ballot export and app submission both enforce the same rule, and the verifier checks it.
+
+### Verification performance
+
+Per-election verification duration at 100, 1,000 and 5,000 ballots: **not measured**. The only measured-like evidence is a one-ballot saved demo; the verifier defaults to a 30 second timeout. Do not extrapolate. Benchmark realistic archives after a deterministic fixture generator and reproducible CLI setup exist.
+
+## Alternatives
+
+1. **Belenios verification core (selected provisionally).** It provides a real, established encrypted-ballot and tally-proof verifier, and the repository already has a genuine archive that passes it. Downsides: OCaml/WSL setup burden; revoting semantics differ; no browser/web integration; current independent attack checks are incomplete. Chain anchor must include election/config hash, eligible credential-set hash, accepted archive hash (or ballot Merkle root), and result hash. Current archive/config/credential commitments exist in the demo; a separately anchored result hash remains to be added.
+2. **ElectionGuard Python SDK.** The official Election-Tech Initiative repository describes the SDK as implementing ElectionGuard and links a license; it supports Python 3.9+. Current maintenance status cannot be established merely from a live repository page and has not been audited via release/commit history in this task. It would still require a browser ballot/credential workflow and the same anchor commitments (config, eligible set, ballot archive/root, result). No migration or performance evidence exists. Evidence: [official ElectionGuard Python repository](https://github.com/Election-Tech-Initiative/electionguard-python).
+3. **RFC 9474 blind-signature eligibility tokens + anonymous public ballot list.** This is a simpler architecture to integrate, but no implementation exists here and no cryptographic proof should be claimed. Voters obtain a one-use blind-signed eligibility token and post an anonymously signed ballot record; a public list is committed by a Merkle root anchored with config hash, eligible-set/credential-set hash, accepted-ballot root, and result hash. **Choices are public but intended to be unlinkable; they are not encrypted.** Anyone can read each ballot choice. A valid token can demonstrate issuance by the signer, while a list/root can expose subsequent changes; neither proves the signer’s roster was correct, that a ballot was cast by the intended student, or that a reported tally follows without a publicly specified and independently run tally rule. RFC 9474 specifies an RSA blind-signature protocol but is Informational, not an Internet Standards Track spec. Linkage risks include issuance timing, IP logs, receipts, distinctive ballot payloads, API request metadata, database joins, and collusion between issuer and ballot service. Evidence: [RFC 9474 at RFC Editor](https://www.rfc-editor.org/info/rfc9474/).
+
+## On-chain anchor and independent retention
+
+Blockchain anchoring is required for every option. The verifier must pin and check RPC, chain ID, contract address and runtime code hash, election ID, config hash, eligible-set/credential-set hash, accepted-ballot archive hash/Merkle root, and result hash. A student should retain a receipt tracker and check inclusion against the public accepted ballot data without disclosing a choice. An auditor must obtain the chain reference independently from the election publication (for example, multiple election trustees publish the chain ID, contract, election ID, anchor transaction/block, and commitments through separate channels), then query a public RPC and compare a second independent RPC/explorer. A JSON file stored beside the archive is not independent retention.
+
+No Sepolia deployment was performed and no public RPC/address/code-hash pin is available. Current RPC `http://127.0.0.1:18546`, chain ID `31337`, contract `0x5FbDB2315678afecb367f032d93F642f64180aa3`, code hash `0x23106bcaaf8a95845d9742203fe694da251b1c82837c7af779409d75fa9f790d`, election ID `0x2a9cee90746de4855095afbf034be440726131d1876364102570ad61eb6672ba` are a **local Hardhat demo stand-in** only. A locally controlled Hardhat chain is not an independent immutable witness.
+
+## Decision limits
+
+Keep Belenios for the current research prototype because it is the only option with a real cryptographic election archive and an official verifier PASS already recorded. Revisit the fallback if a clean Windows setup measurement shows the tool cannot be built/run reliably in judge time. Option 3 is not selected because its public-choice privacy tradeoff is materially different and a blind-signature/token system would need a careful implementation and review. No unsupported cryptographic implementation is proposed as a substitute.

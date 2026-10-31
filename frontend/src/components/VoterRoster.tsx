@@ -77,7 +77,7 @@ export default function VoterRoster({
       <input
         ref={inputRef}
         type="file"
-        accept=".csv,.xlsx,.xls"
+        accept=".csv,.xlsx"
         className="hidden"
         onChange={(event) => upload(event.target.files?.[0])}
         disabled={disabled || uploading}
@@ -86,7 +86,8 @@ export default function VoterRoster({
       {canDelete && (
         <p className="font-mono text-[10px] leading-relaxed text-ash/70">
           Include the configured identity columns and contact columns in the header row. The roster is organizer-only;
-          voters use their election code and a one-time code sent to their registered contact.
+          voters use their election code and a one-time code sent to their registered contact. Use CSV or .xlsx;
+          format phone numbers as text with country code, for example +919876543210.
         </p>
       )}
       {error && <ErrorMessage error={error} />}

@@ -1,0 +1,33 @@
+Belenios 3.3.0: synthetic one-voter, two-candidate election
+Election UUID: ST44AbHySVFPxL
+1 private credentials with ids saved to ./1793425925.privcreds
+1 public credentials saved to ./1793425925.pubcreds
+The fingerprint of public credentials is XFMsTAVYdzqZkW+ubeCnyVX8wIIae8MvdgqPe3fc0co
+I: keypair 12F72D75 has been generated
+I: public key saved to 12F72D75.pubkey
+I: private key saved to 12F72D75.privkey
+I: using directory .
+I: loading choice.json...
+I: loading voter.credential...
+I: using directory .
+I: loading ballot.json...
+I: ballot is valid
+Ballot tracker: JT1GN4rv+rvUqbTfeLam4vIrXGfj/1T6/hkLXsREAiE
+I: using directory .
+I: loading choice.json...
+I: loading voter.credential...
+I: using directory .
+I: using directory .
+I: loading 12F72D75.privkey...
+I: using directory .
+I: using directory .
+I: using directory .
+I: loading 12F72D75.privkey...
+I: using directory .
+Official verifier output:
+I: using directory .
+I: fingerprint of encrypted tally is 0k/jp41P1AwWmgfdWznrh6kWcG1PzP6bA+wqMCUrphQ
+I: no shuffles to check
+I: all checks passed
+Synthetic private working files retained at /tmp/votevault-synthetic.HzlquCQr
+Public artifacts saved at /mnt/c/Users/mailp/OneDrive/Desktop/VVT/docs/belenios-real-synthetic

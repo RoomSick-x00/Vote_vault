@@ -263,6 +263,7 @@ export default function ManageElection() {
         <VerificationSetup election={election} voters={voters} onChanged={() => load(true)} />
       </div>
 
+      <div className="mt-8"><Link to={`/audit/${election.election_id}`} className="text-saffron">Inspect public audit records</Link></div>
       <div className="mt-8">
         <PublicationsPanel electionId={election.election_id} refreshKey={pubRefresh} />
       </div>

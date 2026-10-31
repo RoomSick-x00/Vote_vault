@@ -222,7 +222,7 @@ export default function VoterSession() {
       ) : (
         <form onSubmit={verifyOtp} className="space-y-4">
           <p className="text-sm text-ash">
-            Enter the one-time code sent to your registered {channel}. It expires in {Math.ceil(otpRequest.expiresIn / 60)} minutes.
+            Enter the one-time code for your registered {channel}. Delivery was requested; check your inbox or messages. It expires in {Math.ceil(otpRequest.expiresIn / 60)} minutes.
           </p>
           {otpRequest.devCode && (
             <p className="rounded-xl border border-amber-500/30 bg-amber-950/20 p-3 font-mono text-xs text-amber-200">

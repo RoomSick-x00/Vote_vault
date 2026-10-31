@@ -74,17 +74,17 @@ const STEPS = [
   {
     id: '02',
     accent: '#FF9933',
-    tag: 'SECRECY LAYER',
-    title: 'Cast a Secret Ballot',
-    body: 'Submit a vote without exposing the voter\u2019s identity alongside their candidate choice.',
+    tag: 'BALLOT SUBMISSION',
+    title: 'Cast a Ballot',
+    body: 'Submit a vote and receive a commitment receipt.',
     Icon: BallotSlotIcon,
   },
   {
     id: '03',
     accent: '#18A024',
     tag: 'PUBLIC AUDIT',
-    title: 'Verify the Tally',
-    body: 'Check election records and verify the published result without revealing individual votes.',
+    title: 'Inspect the Records',
+    body: 'Compare public commitments with blockchain records. This does not prove tally correctness.',
     Icon: LedgerIcon,
   },
 ] as const
@@ -106,15 +106,14 @@ export default function HowItWorks() {
           <div>
             <p className="flex items-center gap-3 font-mono text-[11px] tracking-[0.32em] text-ash">
               <span aria-hidden className="h-px w-10 bg-saffron/90" />
-              PROTOCOL — THREE GUARANTEES
+              THE WORKFLOW
             </p>
             <h2 className="mt-5 font-display text-4xl font-bold tracking-tight text-paper md:text-5xl">
               How it works.
             </h2>
           </div>
           <p className="max-w-sm text-sm leading-relaxed text-ash">
-            Three guarantees power every VoteVault election — from the moment a voter is verified
-            to the second the result is proven, independently checkable by anyone.
+            Follow voter verification, ballot submission, and public record inspection.
           </p>
         </div>
 

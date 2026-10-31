@@ -18,11 +18,14 @@ import csv
 import hashlib
 import hmac
 import io
+import re
 import secrets
 import uuid
+from zipfile import BadZipFile
 from datetime import datetime, timedelta, timezone
 
 import jwt as pyjwt
+from email_validator import EmailNotValidError, validate_email
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -78,37 +81,56 @@ def normalize_header(header: str) -> str | None:
     return None
 
 
+def _headers(values) -> list[str | None]:
+    headers = [normalize_header(str(value)) if value is not None else None for value in values]
+    known = [value for value in headers if value]
+    if not known:
+        raise ApiError(422, "INVALID_FILE", "No recognized columns. Use headers such as name, rollNo, email, phone.")
+    if len(known) != len(set(known)):
+        raise ApiError(422, "INVALID_FILE", "The file contains duplicate columns for the same field.")
+    return headers
+
+
 def parse_roster_file(filename: str, content: bytes) -> list[dict[str, str]]:
     """Parse CSV or XLSX into row dicts keyed by canonical column names."""
     lowered = (filename or "").lower()
-    if lowered.endswith((".xlsx", ".xls")):
+    if lowered.endswith(".xls"):
+        raise ApiError(422, "INVALID_FILE", "Legacy .xls is not supported. Save the file as .xlsx or CSV.")
+    if lowered.endswith(".xlsx"):
         try:
             import openpyxl
         except ImportError as exc:  # pragma: no cover
             raise ApiError(422, "INVALID_FILE", "XLSX support requires the openpyxl package.") from exc
-        workbook = openpyxl.load_workbook(io.BytesIO(content), read_only=True, data_only=True)
-        sheet = workbook.active
-        rows = list(sheet.iter_rows(values_only=True))
+        try:
+            workbook = openpyxl.load_workbook(io.BytesIO(content), read_only=True, data_only=True)
+            sheet = workbook.active
+            rows = list(sheet.iter_rows(values_only=True))
+            workbook.close()
+        except (BadZipFile, ValueError, KeyError, OSError) as exc:
+            raise ApiError(422, "INVALID_FILE", "Could not read this Excel file. Upload a valid .xlsx file.") from exc
         if not rows:
             return []
-        headers = [normalize_header(str(h)) if h is not None else None for h in rows[0]]
+        headers = _headers(rows[0])
         return [
-            {canon: ("" if cell is None else str(cell).strip())
-             for canon, cell in zip(headers, row) if canon}
-            for row in rows[1:]
+            {**{canon: ("" if cell is None else str(cell).strip())
+             for canon, cell in zip(headers, row) if canon}, "__row__": index}
+            for index, row in enumerate(rows[1:], start=2)
             if any(cell is not None and str(cell).strip() for cell in row)
         ]
 
+    if not lowered.endswith(".csv"):
+        raise ApiError(422, "INVALID_FILE", "Upload a CSV or .xlsx file.")
     text = content.decode("utf-8-sig")
     reader = csv.reader(io.StringIO(text))
     parsed: list[dict[str, str]] = []
-    raw_rows = [row for row in reader if any(cell.strip() for cell in row)]
+    raw_rows = [(reader.line_num, row) for row in reader if any(cell.strip() for cell in row)]
     if not raw_rows:
         return []
-    headers = [normalize_header(cell) for cell in raw_rows[0]]
-    for row in raw_rows[1:]:
+    headers = _headers(raw_rows[0][1])
+    for index, row in raw_rows[1:]:
         entry = {canon: cell.strip() for canon, cell in zip(headers, row) if canon}
         if entry:
+            entry["__row__"] = index
             parsed.append(entry)
     return parsed
 
@@ -127,11 +149,21 @@ def import_roster(db: Session, election: Election, filename: str, content: bytes
 
     errors: list[dict] = []
     valid: list[tuple[int, dict]] = []
-    for index, row in enumerate(rows, start=2):  # row 1 is the header
+    for fallback_index, row in enumerate(rows, start=2):
+        index = row.pop("__row__", fallback_index)
         missing = [col for col in required if not row.get(col)]
         if missing:
             errors.append({"row": index, "message": f"missing required column(s): {', '.join(missing)}"})
             continue
+        if not (row.get("name") or row.get("rollNo")) or not (row.get("email") or row.get("phone")):
+            errors.append({"row": index, "message": "each voter needs a name or roll number and an email or phone number"})
+            continue
+        if row.get("email"):
+            try:
+                row["email"] = validate_email(row["email"], check_deliverability=False).normalized
+            except EmailNotValidError:
+                errors.append({"row": index, "message": "invalid email address"})
+                continue
         valid.append((index, row))
 
     existing_rollnos = set(
@@ -140,16 +172,23 @@ def import_roster(db: Session, election: Election, filename: str, content: bytes
     existing_emails = set(
         db.scalars(select(Voter.email).where(Voter.election_id == election.id, Voter.email.is_not(None)))
     )
+    existing_phones = {re.sub(r"[\s()\-]", "", value) for value in db.scalars(
+        select(Voter.phone).where(Voter.election_id == election.id, Voter.phone.is_not(None))
+    )}
 
     imported = 0
     for index, row in valid:
         roll_no = row.get("rollNo") or None
         email = (row.get("email") or None)
+        phone = re.sub(r"[\s()\-]", "", row.get("phone") or "") or None
         if roll_no and roll_no.lower() in {r.lower() for r in existing_rollnos}:
             errors.append({"row": index, "message": "duplicate roll number already in the roster"})
             continue
         if email and email.lower() in {e.lower() for e in existing_emails}:
             errors.append({"row": index, "message": "duplicate email already in the roster"})
+            continue
+        if phone and phone in existing_phones:
+            errors.append({"row": index, "message": "duplicate phone number already in the voter file"})
             continue
         db.add(
             Voter(
@@ -157,7 +196,7 @@ def import_roster(db: Session, election: Election, filename: str, content: bytes
                 name=row.get("name") or None,
                 roll_no=roll_no,
                 email=email,
-                phone=row.get("phone") or None,
+                phone=phone,
             )
         )
         imported += 1
@@ -165,12 +204,14 @@ def import_roster(db: Session, election: Election, filename: str, content: bytes
             existing_rollnos.add(roll_no)
         if email:
             existing_emails.add(email)
+        if phone:
+            existing_phones.add(phone)
 
     db.commit()
     detected = sorted({canon for row in rows for canon in row}, key=CANONICAL_ORDER.index)
     return {
         "imported": imported,
-        "skipped": max(len(valid) - imported, 0),
+        "skipped": len(rows) - imported,
         "errors": errors,
         "columns": detected,
     }
@@ -305,14 +346,19 @@ def create_otp_challenge(
     db: Session, settings: Settings, election: Election, voter: Voter, identify_jti: str, channel: str, contact: str
 ) -> tuple[VoterOtpChallenge, str | None]:
     roster_contact = voter.email if channel == "email" else voter.phone
-    if not roster_contact or roster_contact.strip().lower() != contact.strip().lower():
+    normalize = (lambda value: re.sub(r"[\s()\-]", "", value)) if channel == "phone" else (lambda value: value.strip().lower())
+    if not roster_contact or normalize(roster_contact) != normalize(contact):
         raise ApiError(403, "CONTACT_MISMATCH", f"This {channel} is not on the roster for your entry.")
+    if election.status != "open":
+        raise ApiError(409, "ELECTION_NOT_OPEN", "This election is not accepting voters.")
+    check_voting_window(election)
+    # Serialize requests for the same voter on databases that support row locks.
+    db.execute(select(Voter.id).where(Voter.id == voter.id).with_for_update()).first()
 
     recent = db.scalars(
         select(VoterOtpChallenge)
         .where(
             VoterOtpChallenge.voter_id == voter.id,
-            VoterOtpChallenge.identify_jti == identify_jti,
         )
         .order_by(VoterOtpChallenge.expires_at.desc())
     ).first()
@@ -333,10 +379,24 @@ def create_otp_challenge(
         expires_at=utcnow() + timedelta(seconds=OTP_TTL_SECONDS),
     )
     db.add(challenge)
-    db.commit()
-    # Dev delivery: without a mail/SMS provider the code returns in the response
-    # and the log, clearly flagged. Production must wire a real sender.
-    dev_code = code if settings.app_env != "production" else None
+    # A provider failure must not leave an unusable challenge or start a resend cooldown.
+    from app.services.otp_delivery import deliver_otp
+    try:
+        db.flush()
+        dev_code, provider_marker = deliver_otp(settings, channel, normalize(roster_contact), code)
+        if provider_marker:
+            challenge.code_hash = provider_marker
+        previous = db.scalars(select(VoterOtpChallenge).where(
+            VoterOtpChallenge.voter_id == voter.id,
+            VoterOtpChallenge.id != challenge.id,
+            VoterOtpChallenge.consumed_at.is_(None),
+        )).all()
+        for old in previous:
+            old.consumed_at = utcnow()
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     return challenge, dev_code
 
 
@@ -366,7 +426,13 @@ def consume_otp(db: Session, settings: Settings, identify_claims: dict, otp: str
         raise ApiError(429, "OTP_TOO_MANY_ATTEMPTS", "Too many wrong codes; request a new one.")
 
     challenge.attempts += 1
-    if not hmac.compare_digest(challenge.code_hash, _hash_code(otp.strip(), _voter_secret(settings))):
+    if challenge.code_hash.startswith("tv:"):
+        from app.services.otp_delivery import check_twilio_verify
+        db.commit()  # Count attempts even if the provider is unavailable.
+        valid = check_twilio_verify(settings, challenge.code_hash, otp.strip())
+    else:
+        valid = hmac.compare_digest(challenge.code_hash, _hash_code(otp.strip(), _voter_secret(settings)))
+    if not valid:
         db.commit()
         raise ApiError(401, "OTP_INVALID", "Wrong code.")
     challenge.consumed_at = utcnow()

@@ -1,0 +1,4 @@
+I: using directory .
+I: no shuffles to check
+I: no result to check
+I: all checks passed

@@ -40,7 +40,7 @@ def _verify(client, identify_token, otp):
 def test_csv_upload_report_and_roster_listing(client):
     setup = build_ready_election(client)
     report = setup["import_report"]
-    assert report == {"imported": 3, "skipped": 0, "errors": []}
+    assert report == {"imported": 3, "skipped": 0, "errors": [], "columns": ["name", "rollNo", "email", "phone"]}
 
     listing = client.get(
         f"/api/v1/elections/{setup['election_id']}/voters", headers=auth(ORGANIZER)

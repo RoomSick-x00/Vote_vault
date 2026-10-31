@@ -93,7 +93,7 @@ def create_organization(client, user_id=ORGANIZER, name="Test Club") -> dict:
 def create_election(client, organization_id, user_id=ORGANIZER, title="Club election 2026") -> dict:
     resp = client.post(
         "/api/v1/elections",
-        json={"organization_id": str(organization_id), "title": title},
+        json={"organization_id": str(organization_id), "title": title, "voter_schema": {"identityColumns": ["rollNo"], "otpChannels": ["email"]}},
         headers=auth(user_id),
     )
     assert resp.status_code == 201, resp.text

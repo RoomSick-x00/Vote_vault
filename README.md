@@ -2,7 +2,9 @@
 
 VoteVault is a campus/club election prototype built by three teammates.
 
-**Status:** the FastAPI backend and Solidity ElectionRegistry are integrated with a real local Hardhat chain. The current interface includes frozen configuration commitments, retry acknowledgements, and ordered publication with a `closing` state while accepted ballots drain. The frontend has also landed; its integration with this revised lifecycle has not yet been validated. See [the run guide](docs/local-chain.md) and [the locked interface](docs/decisions/2026-10-31-blockchain-interface.md). Results are a backend demo tally; independent tally verification is not implemented.
+**Status:** educational prototype for synthetic data only. The FastAPI backend and Solidity ElectionRegistry support a local Hardhat chain, frozen configuration commitments, and ordered publication. A standalone verifier can recount synthetic ballot openings against a separately trusted chain, but this exposes individual choices and does not establish private voting or eligibility. The application stores voter identity alongside ballot choice. See the [security review and verifier instructions](docs/SECURITY-REVIEW.md), [run guide](docs/local-chain.md), and [interface](docs/decisions/2026-10-31-blockchain-interface.md). Do not use for actual elections without independent security auditing and validation.
+
+The new private election mode is **not implemented**. Its selected upstream protocol, separate experimental archive contract, and outstanding integration work are described in [private election progress](docs/PRIVATE-ELECTION-PROGRESS.md).
 
 ## Milestones
 
@@ -10,7 +12,7 @@ VoteVault is a campus/club election prototype built by three teammates.
 
 An organizer creates an election and specifies eligible test voters. Eligible test voters submit one ballot each; duplicate submissions are rejected. Ballot commitments are recorded on a required Hardhat local blockchain. The organizer closes the election and sees a demo backend tally and receipt checks.
 
-This milestone does not provide anonymous eligibility, encrypted ballots, or independent verification of the tally. Local blockchain records and receipt checks alone do not establish those capabilities. Treat this as a test-data prototype, not a production election system.
+This milestone does not provide anonymous eligibility, encrypted ballots, or a privacy-preserving independently verifiable tally. Local blockchain records and receipt checks alone do not establish those capabilities. Treat this as a test-data prototype, not a production election system.
 
 ### 2. Privacy and independent verification (later)
 

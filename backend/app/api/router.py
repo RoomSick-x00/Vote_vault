@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from app.api.routes import (
+    audit,
     auth,
     ballots,
     candidates,
@@ -17,6 +18,7 @@ from app.api.routes import (
 )
 
 api_router = APIRouter(prefix="/api/v1")
+api_router.include_router(audit.router, prefix="/audit", tags=["audit"])
 api_router.include_router(auth.router, tags=["auth"])
 api_router.include_router(organizations.router, prefix="/organizations", tags=["organizations"])
 api_router.include_router(elections.router, prefix="/elections", tags=["elections"])

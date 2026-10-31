@@ -74,7 +74,7 @@ function buildUrl(endpoint: string, query?: Record<string, string | undefined | 
       if (value !== undefined && value !== null) url.searchParams.set(key, value)
     }
   }
-  return `${url.pathname}${url.search}`
+  return url.toString()
 }
 
 async function request<T>(endpoint: string, opts: RequestOptions = {}): Promise<T> {
@@ -166,6 +166,9 @@ export function getRememberedReceipt(electionId: string): string | null {
 }
 
 export const api = {
+  auditRecord: (id: string) => request<AuditRecord>(`/audit/${encodeURIComponent(id)}`, { auth: 'none' }),
+  verifyAudit: (record: AuditRecord) => request<{ checks: AuditCheck[] }>('/audit/verify', { method: 'POST', body: record, auth: 'none' }),
+
   // ---------- Organizer auth ----------
 
   async signup(payload: {
@@ -321,3 +324,6 @@ export const api = {
 
   getResults: (electionId: string) => request<ElectionResults>(`/elections/${electionId}/results`),
 }
+
+export interface AuditRecord { election_id: string; status: string; configuration: unknown; records: Array<{ type: string; payload: Record<string, string>; tx_hash: string | null }>; result: { total_ballots: number; counts: Array<{ candidate_id: string; name: string; chain_index: number; votes: number }> } | null }
+export interface AuditCheck { id: string; status: 'PASS' | 'FAIL' | 'INCOMPLETE'; reason: string }
