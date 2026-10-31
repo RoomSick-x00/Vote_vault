@@ -102,6 +102,11 @@ export interface CreateElectionPayload {
   closes_at?: string | null
 }
 
+export interface ElectionListOut {
+  elections: Election[]
+  electionCount: number
+}
+
 export interface OpenElectionOut {
   election_id: string
   status: ElectionStatus
@@ -147,6 +152,8 @@ export interface VoterImportReport {
   imported: number
   skipped: number
   errors: Array<{ row: number; message: string }>
+  /** Canonical columns detected in the uploaded file (post-upload verification picks from these). */
+  columns: Array<'name' | 'rollNo' | 'email' | 'phone'>
 }
 
 export interface PublicElection {

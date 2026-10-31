@@ -32,6 +32,7 @@ from app.errors import ApiError
 from app.models import Election, Voter, VoterOtpChallenge
 
 CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"  # no 0/O/1/I/L
+CANONICAL_ORDER = ["name", "rollNo", "email", "phone"]
 OTP_TTL_SECONDS = 600
 OTP_RESEND_AFTER_SECONDS = 30
 OTP_MAX_ATTEMPTS = 5
@@ -39,10 +40,14 @@ IDENTIFY_TOKEN_TTL_SECONDS = 600
 VOTER_SESSION_TTL_SECONDS = 2 * 3600
 
 COLUMN_ALIASES = {
-    "name": ("name", "full name", "fullname", "student name"),
-    "rollNo": ("rollno", "roll no", "roll number", "roll", "rollno."),
-    "email": ("email", "email address", "mail"),
-    "phone": ("phone", "phone number", "mobile", "mobile number", "contact"),
+    "name": ("name", "full name", "fullname", "student name", "voter name", "candidate name"),
+    "rollNo": (
+        "rollno", "roll no", "roll number", "roll", "rollno.",
+        "admin no", "adminno", "admin number", "admin", "adm no", "admno",
+        "reg no", "regno", "registration no", "registration number", "usn", "student id", "id no",
+    ),
+    "email": ("email", "email address", "mail", "gmail", "gmail id", "email id", "e-mail", "e mail", "college email"),
+    "phone": ("phone", "phone number", "mobile", "mobile number", "contact", "contact no", "whatsapp", "phone no", "phone.", "tel", "tel no"),
 }
 
 
@@ -162,7 +167,13 @@ def import_roster(db: Session, election: Election, filename: str, content: bytes
             existing_emails.add(email)
 
     db.commit()
-    return {"imported": imported, "skipped": max(len(valid) - imported, 0), "errors": errors}
+    detected = sorted({canon for row in rows for canon in row}, key=CANONICAL_ORDER.index)
+    return {
+        "imported": imported,
+        "skipped": max(len(valid) - imported, 0),
+        "errors": errors,
+        "columns": detected,
+    }
 
 
 def voter_record(voter: Voter, db: Session) -> dict:

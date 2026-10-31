@@ -1,5 +1,7 @@
 import type {
   ApiError,
+  ElectionListOut,
+  VoterSchema,
   AuthMe,
   AuthSession,
   CandidatesAddOut,
@@ -55,35 +57,10 @@ export const setOrganizerToken = (t: string | null) => writeStorage(localStorage
 export const getVoterToken = () => readStorage(sessionStorage, VOTER_TOKEN_KEY)
 export const setVoterToken = (t: string | null) => writeStorage(sessionStorage, VOTER_TOKEN_KEY, t)
 
-/**
- * The backend has no "list my elections" endpoint yet. Until member 2 adds one,
- * the dashboard keeps a local index of election IDs this browser has created or
- * visited and hydrates each via GET /elections/{id} (which the organizer can see).
- */
-function readElectionIndex(): string[] {
-  try {
-    const raw = JSON.parse(localStorage.getItem(ELECTION_INDEX_KEY) || '[]')
-    return Array.isArray(raw) ? raw.filter((v): v is string => typeof v === 'string') : []
-  } catch {
-    return []
-  }
-}
-
-export const electionIndex = {
-  all: readElectionIndex,
-  remember(id: string) {
-    const ids = readElectionIndex()
-    if (!ids.includes(id)) writeStorage(localStorage, ELECTION_INDEX_KEY, JSON.stringify([...ids, id]))
-  },
-  forget(id: string) {
-    writeStorage(localStorage, ELECTION_INDEX_KEY, JSON.stringify(readElectionIndex().filter((v) => v !== id)))
-  },
-}
-
 type AuthKind = 'organizer' | 'voter' | 'none'
 
 interface RequestOptions {
-  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'
+  method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
   body?: unknown
   auth?: AuthKind
   /** Query params; undefined/null values are skipped. */
@@ -244,21 +221,18 @@ export const api = {
 
   getElection: (id: string) => request<Election>(`/elections/${id}`),
 
-  /** Interim dashboard list: hydrate the local ID index in parallel, pruning dead IDs. */
-  async getElectionsFromIndex(): Promise<Election[]> {
-    const ids = electionIndex.all()
-    const results = await Promise.allSettled(ids.map((id) => api.getElection(id)))
-    const alive: Election[] = []
-    results.forEach((r, i) => {
-      if (r.status === 'fulfilled') alive.push(r.value)
-      else if (r.reason && (r.reason as ApiError).error === 'NOT_FOUND') electionIndex.forget(ids[i])
-    })
-    // Newest first, matching what a server-side list would return.
-    return alive.sort((a, b) => b.created_at.localeCompare(a.created_at))
-  },
+  /** Server-side dashboard list: elections of organizations the user organizes. */
+  getElections: () => request<ElectionListOut>('/elections'),
 
   createElection: (payload: CreateElectionPayload) =>
     request<Election>('/elections', { method: 'POST', body: payload }),
+
+  /** Select verification attributes after the roster is uploaded (draft only). */
+  setVoterSchema: (electionId: string, schema: VoterSchema) =>
+    request<Election>(`/elections/${electionId}/voter-schema`, {
+      method: 'PUT',
+      body: schema,
+    }),
 
   openElection: (id: string) =>
     request<OpenElectionOut>(`/elections/${id}/open`, { method: 'POST', body: {} }),

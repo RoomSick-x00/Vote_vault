@@ -27,12 +27,48 @@ from app.models import Candidate, Election, PublicationJob, Voter
 from app.schemas.elections import (
     CloseElectionOut,
     ElectionCreateIn,
+    ElectionListOut,
     ElectionOut,
     OpenElectionOut,
+    VoterSchemaIn,
 )
 from app.services import publication_service, tally_service
 
 router = APIRouter()
+
+
+@router.get("", response_model=ElectionListOut)
+def list_elections(
+    user: AuthUser = Depends(get_current_user), db: Session = Depends(get_db)
+) -> ElectionListOut:
+    """Dashboard index: elections of organizations the user organizes.
+
+    Scoped to owner/organizer memberships — drafts are organizer-only data, so
+    a plain member (voter) gets nothing here; they reach elections by code.
+    """
+    from app.models import OrgMembership
+
+    org_ids = db.scalars(
+        select(OrgMembership.organization_id).where(
+            OrgMembership.user_id == user.id, OrgMembership.role.in_(("owner", "organizer"))
+        )
+    ).all()
+    if not org_ids:
+        return ElectionListOut(elections=[], electionCount=0)
+    elections = db.scalars(
+        select(Election)
+        .where(Election.organization_id.in_(org_ids))
+        .order_by(Election.created_at.desc())
+    ).all()
+    out = []
+    for election in elections:
+        candidates = db.scalars(
+            select(Candidate)
+            .where(Candidate.election_id == election.id)
+            .order_by(Candidate.chain_index)
+        ).all()
+        out.append(ElectionOut.build(election, list(candidates)))
+    return ElectionListOut(elections=out, electionCount=len(out))
 
 
 @router.post("", status_code=201, response_model=ElectionOut)
@@ -54,8 +90,12 @@ def create_election(
         description=payload.description,
         code=generate_election_code(existing_codes),
         status="draft",
-        voter_schema=validate_voter_schema(
-            payload.voter_schema.model_dump() if payload.voter_schema else {"identityColumns": ["rollNo"], "otpChannels": ["email"]}
+        # Verification attributes are selected AFTER the roster is uploaded
+        # (PUT /voter-schema). Omitted schema stays unset until then.
+        voter_schema=(
+            validate_voter_schema(payload.voter_schema.model_dump())
+            if payload.voter_schema
+            else {"identityColumns": [], "otpChannels": []}
         ),
         opens_at=payload.opens_at,
         closes_at=payload.closes_at,
@@ -65,6 +105,50 @@ def create_election(
     db.commit()
     db.refresh(election)
     return ElectionOut.build(election, [])
+
+
+@router.put("/{election_id}/voter-schema", response_model=ElectionOut)
+def set_voter_schema(
+    payload: VoterSchemaIn,
+    election: Election = Depends(require_election_organizer),
+    db: Session = Depends(get_db),
+) -> ElectionOut:
+    """Select verification attributes from the uploaded roster's columns.
+
+    Draft-only (the configuration freezes at open). Validates that every
+    roster entry actually has the chosen identity column(s) and the contact
+    column for each chosen OTP channel — otherwise some voters could never
+    identify themselves.
+    """
+    if election.status != "draft":
+        raise ApiError(409, "ELECTION_NOT_DRAFT", "Verification attributes can only be changed while the election is a draft.")
+
+    from app.services.voter_service import validate_voter_schema
+
+    schema = validate_voter_schema(payload.model_dump())
+
+    voters = list(db.scalars(select(Voter).where(Voter.election_id == election.id)))
+    if voters:
+        def missing(column: str) -> int:
+            return sum(1 for v in voters if not getattr(v, {"rollNo": "roll_no", "name": "name", "email": "email", "phone": "phone"}[column]))
+
+        gaps = [
+            f"{column} missing for {missing(column)}/{len(voters)} roster entries"
+            for column in schema["identityColumns"] + schema["otpChannels"]
+            if missing(column)
+        ]
+        if gaps:
+            raise ApiError(
+                422,
+                "VALIDATION_ERROR",
+                "Cannot verify voters with the selected attributes — " + "; ".join(gaps) + ".",
+            )
+
+    election.voter_schema = schema
+    db.commit()
+    db.refresh(election)
+    candidates = db.scalars(select(Candidate).where(Candidate.election_id == election.id).order_by(Candidate.chain_index)).all()
+    return ElectionOut.build(election, list(candidates))
 
 
 @router.get("/{election_id}", response_model=ElectionOut)
@@ -95,6 +179,10 @@ def open_election(
     voter_count = db.scalar(select(func.count(Voter.id)).where(Voter.election_id == election.id))
     if not voter_count:
         raise ApiError(409, "ELECTION_HAS_NO_VOTERS", "Upload a voter roster before opening.")
+
+    from app.services.voter_service import validate_voter_schema
+
+    validate_voter_schema(election.voter_schema or {})  # 422 if verification attributes were never selected
 
     from app.services.configuration import freeze_configuration
     frozen = freeze_configuration(db, election)

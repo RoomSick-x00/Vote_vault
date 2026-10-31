@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, Play, Plus, RefreshCw, Square, Users, Vote } from 'lucide-react'
-import { api, electionIndex } from '../services/api'
+import { api } from '../services/api'
 import type { ApiError, Election, VoterRecord } from '../types'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import { Button } from '../components/ui/Button'
@@ -10,6 +10,7 @@ import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { ConfirmationModal } from '../components/ui/ConfirmationModal'
 import ShareCard from '../components/ShareCard'
 import VoterRoster from '../components/VoterRoster'
+import VerificationSetup from '../components/VerificationSetup'
 import PublicationsPanel from '../components/PublicationsPanel'
 
 /**
@@ -47,7 +48,6 @@ export default function ManageElection() {
   )
 
   useEffect(() => {
-    if (id) electionIndex.remember(id)
     load()
   }, [id, load])
 
@@ -117,6 +117,9 @@ export default function ManageElection() {
   const isOpen = election.status === 'open'
   const isClosing = election.status === 'closing'
   const isClosed = election.status === 'closed'
+  const verificationUnset =
+    (election.voter_schema?.identityColumns?.length ?? 0) === 0 ||
+    (election.voter_schema?.otpChannels?.length ?? 0) === 0
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
@@ -168,7 +171,11 @@ export default function ManageElection() {
 
           <div className="flex shrink-0 flex-wrap items-center gap-3">
             {isDraft && (
-              <Button onClick={() => setModal('open')} disabled={voters.length === 0}>
+              <Button
+                onClick={() => setModal('open')}
+                disabled={voters.length === 0 || verificationUnset}
+                title={verificationUnset ? 'Select verification attributes from the roster first' : undefined}
+              >
                 <Play className="h-4 w-4" />
                 Open voting
               </Button>
@@ -206,6 +213,11 @@ export default function ManageElection() {
             Add at least one candidate before opening the election.
           </p>
         )}
+        {isDraft && verificationUnset && voters.length > 0 && (
+          <p className="mt-4 font-mono text-xs text-amber-300">
+            Select which roster columns verify voters (below) before opening the election.
+          </p>
+        )}
         {isClosing && (
           <p className="mt-4 rounded-2xl border border-sky-500/30 bg-sky-950/20 p-3 font-mono text-xs text-sky-300">
             Close requested — accepted ballots are draining onto the chain. Status becomes `closed` once the close
@@ -221,7 +233,7 @@ export default function ManageElection() {
         </div>
       )}
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-[1.4fr_1fr]">
+      <div className="mt-8 grid gap-8 lg:grid-cols-[1.3fr_1.3fr_1fr]">
         <div className="space-y-4 self-start rounded-3xl border border-white/10 bg-charcoal/40 p-6">
           <h2 className="border-b border-white/10 pb-3 font-display text-lg font-bold text-paper">Candidates</h2>
           {election.candidates.map((c) => (
@@ -247,6 +259,8 @@ export default function ManageElection() {
           canUpload={isDraft || isOpen}
           canDelete={isDraft}
         />
+
+        <VerificationSetup election={election} voters={voters} onChanged={() => load(true)} />
       </div>
 
       <div className="mt-8">

@@ -10,8 +10,8 @@ from app.schemas.common import APIModel, UtcIso, utc_input_validator
 
 
 class VoterSchemaIn(APIModel):
-    identityColumns: list[str] = Field(default_factory=lambda: ["rollNo"])
-    otpChannels: list[str] = Field(default_factory=lambda: ["email"])
+    identityColumns: list[str] = Field(default_factory=list)
+    otpChannels: list[str] = Field(default_factory=list)
 
 
 class ElectionCreateIn(APIModel):
@@ -73,6 +73,11 @@ class ElectionOut(APIModel):
             opened_at=election.opened_at,
             closed_at=election.closed_at,
         )
+
+
+class ElectionListOut(APIModel):
+    elections: list[ElectionOut]
+    electionCount: int
 
 
 class OpenElectionOut(APIModel):

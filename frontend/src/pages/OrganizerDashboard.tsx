@@ -9,11 +9,7 @@ import { Button } from '../components/ui/Button'
 import { ErrorMessage } from '../components/ui/ErrorMessage'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 
-/**
- * The backend does not expose a "list elections" endpoint yet, so the dashboard
- * hydrates elections this browser created or visited from a local ID index
- * (see services/api.ts). When member 2 adds GET /elections, swap load() to it.
- */
+/** Dashboard: server-side list of elections in organizations the user organizes. */
 export default function OrganizerDashboard() {
   const { user } = useAuth()
   const [elections, setElections] = useState<Election[]>([])
@@ -24,7 +20,7 @@ export default function OrganizerDashboard() {
     setLoading(true)
     setError(null)
     try {
-      setElections(await api.getElectionsFromIndex())
+      setElections((await api.getElections()).elections)
     } catch (err) {
       setError(err as ApiError)
     } finally {
@@ -152,11 +148,6 @@ export default function OrganizerDashboard() {
         )}
       </div>
 
-      {!loading && elections.length > 0 && (
-        <p className="mt-6 text-center font-mono text-[10px] text-ash/60">
-          Showing elections created or opened in this browser. A server-side election list is pending on the backend.
-        </p>
-      )}
     </div>
   )
 }

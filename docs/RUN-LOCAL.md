@@ -106,16 +106,19 @@ Open the printed URL — `http://localhost:5173` (or 5174 if 5173 is taken).
 1. Sign in (`member1.demo@gmail.com` / `hackathon2026`) or sign up fresh.
    New accounts with no organisation: the create page has an inline
    "name your organisation" card.
-2. Create election: title, optional description/schedule, identity field
-   (rollNo), OTP channel (email), at least 2 candidates.
-3. On the manage page upload the roster (CSV, header row required):
+2. Create election: title, optional description/schedule, at least 2
+   candidates. (Verification attributes are chosen AFTER the roster upload.)
+3. On the manage page upload the roster (CSV, header row required) — headers
+   like `name, rollNo/admin no, email/gmail, phone` all map automatically:
 
    ```csv
    name,rollNo,email
    Asha Verma,CS2101,asha.verma@gmail.com
    Rahul Nair,CS2102,rahul.nair@gmail.com
    ```
-4. "Open voting" → confirm. The publications monitor shows
+4. Still on the manage page: "Voter verification" shows the columns your file
+   actually has (with per-column coverage). Select identity + OTP channel,
+   save, then "Open voting" → confirm. The publications monitor shows
    register/open jobs confirming within seconds.
 
 **Voter (same browser is fine — voter session is per-tab):**

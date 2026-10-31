@@ -110,3 +110,4 @@ class VoterImportReportOut(APIModel):
     imported: int
     skipped: int
     errors: list[dict]
+    columns: list[str] = Field(default_factory=list)
